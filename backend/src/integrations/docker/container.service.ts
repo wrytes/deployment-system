@@ -339,25 +339,18 @@ export class ContainerService {
             return reject(new Error('No response stream from Docker'));
           }
 
-          this.docker.modem.followProgress(
-            stream,
-            (err: any, output: any) => {
-              if (err) {
-                this.logger.error(`Build failed: ${err.message}`);
-                return reject(err);
-              }
-              this.logger.log(`Image built successfully: ${imageName}`);
-              resolve(imageName);
-            },
-            (event) => {
-              if (event.stream) {
-                this.logger.debug(`Build: ${event.stream.trim()}`);
-              }
-              if (event.error) {
-                this.logger.error(`Build error: ${event.error}`);
-              }
-            },
-          );
+          // Pipe stream to process stdout for logging
+          stream.pipe(process.stdout);
+
+          stream.on('end', () => {
+            this.logger.log(`Image built successfully: ${imageName}`);
+            resolve(imageName);
+          });
+
+          stream.on('error', (buildError: any) => {
+            this.logger.error(`Build failed: ${buildError.message}`);
+            reject(buildError);
+          });
         },
       );
     });
@@ -383,7 +376,6 @@ export class ContainerService {
     const workdir = '/app';
 
     let dockerfile = `FROM ${baseImage}\n\n`;
-    dockerfile += `WORKDIR ${workdir}\n\n`;
 
     // Clone the repository inside Docker
     dockerfile += `# Clone repository\n`;

@@ -15,7 +15,7 @@ fi
 ENV_ID="${ENV_ID:-}"
 GIT_URL="${GIT_URL:-https://github.com/imranhsayed/next-js-app}"
 BRANCH="${BRANCH:-main}"
-HOST_PORT="${HOST_PORT:-3000}"
+HOST_PORT="${HOST_PORT:-3001}"
 CONTAINER_PORT="${CONTAINER_PORT:-3000}"
 
 if [ -z "$ENV_ID" ]; then
