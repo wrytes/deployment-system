@@ -272,6 +272,7 @@ export class ContainerService {
     imageName: string;
     tag?: string;
     branch?: string;
+    baseImage?: string;
     buildContext?: string;
     dockerfile?: string;
     installCommand?: string;
@@ -283,6 +284,7 @@ export class ContainerService {
       imageName,
       tag = 'latest',
       branch = 'main',
+      baseImage = 'node:22',
       installCommand,
       buildCommand,
       startCommand,
@@ -292,20 +294,19 @@ export class ContainerService {
     this.logger.log(`Building image from Git: ${gitUrl} (branch: ${branch})`);
 
     try {
-      // Generate Dockerfile content
       const dockerfileContent = this.generateDockerfile({
         gitUrl,
         branch,
+        baseImage,
         installCommand,
         buildCommand,
         startCommand,
       });
 
-      // Create in-memory tar stream with Dockerfile
       const tarStream = this.createTarStream(dockerfileContent);
-
-      // Build image from tar stream
-      return await this.buildImageFromStream(tarStream, fullImageName);
+      const result = await this.buildImageFromStream(tarStream, fullImageName);
+      this.logger.log(`Image built successfully: ${result}`);
+      return result;
     } catch (error) {
       this.logger.error(`Failed to build image from Git: ${error.message}`);
       throw error;
@@ -324,6 +325,11 @@ export class ContainerService {
     imageName: string,
   ): Promise<string> {
     return new Promise((resolve, reject) => {
+      let buildSucceeded = false;
+      let imageTagged = false;
+      let buildFailed = false;
+      let errorMessage = '';
+
       this.docker.buildImage(
         tarStream,
         {
@@ -336,19 +342,68 @@ export class ContainerService {
           }
 
           if (!stream) {
+            this.logger.error(`No response stream from Docker`);
             return reject(new Error('No response stream from Docker'));
           }
 
           // Pipe stream to process stdout for logging
           stream.pipe(process.stdout);
 
+          // Parse stream events to detect success/failure
+          stream.on('data', (chunk: Buffer) => {
+            try {
+              const lines = chunk.toString().split('\n');
+              for (const line of lines) {
+                if (!line.trim()) continue;
+
+                try {
+                  const event = JSON.parse(line);
+
+                  if (event.stream) {
+                    const streamText = event.stream;
+
+                    if (streamText.includes('Successfully built')) {
+                      buildSucceeded = true;
+                    }
+
+                    if (streamText.includes('Successfully tagged')) {
+                      imageTagged = true;
+                    }
+                  }
+
+                  if (event.error || event.errorDetail) {
+                    buildFailed = true;
+                    errorMessage = event.error || event.errorDetail.message || 'Build failed';
+                    this.logger.error(`Build error: ${errorMessage}`);
+                  }
+                } catch (parseError) {
+                  // Not JSON, skip
+                }
+              }
+            } catch (error) {
+              // Ignore parsing errors
+            }
+          });
+
           stream.on('end', () => {
-            this.logger.log(`Image built successfully: ${imageName}`);
+            if (buildFailed) {
+              return reject(new Error(`Build failed: ${errorMessage}`));
+            }
+
+            if (!buildSucceeded) {
+              return reject(new Error('Build did not complete - no "Successfully built" message'));
+            }
+
+            if (!imageTagged) {
+              this.logger.warn(`Image built but not tagged - this should not happen with t parameter`);
+            }
+
+            this.logger.log(`Image built and tagged: ${imageName}`);
             resolve(imageName);
           });
 
           stream.on('error', (buildError: any) => {
-            this.logger.error(`Build failed: ${buildError.message}`);
+            this.logger.error(`Build stream error: ${buildError.message}`);
             reject(buildError);
           });
         },
@@ -359,6 +414,7 @@ export class ContainerService {
   private generateDockerfile(options: {
     gitUrl: string;
     branch: string;
+    baseImage: string;
     installCommand?: string;
     buildCommand?: string;
     startCommand?: string;
@@ -366,27 +422,37 @@ export class ContainerService {
     const {
       gitUrl,
       branch,
+      baseImage,
       installCommand,
       buildCommand,
       startCommand,
     } = options;
 
-    // Default to Node.js base image
-    const baseImage = 'node:18-alpine';
     const workdir = '/app';
+
+    // Detect if base image is Alpine-based
+    const isAlpine = baseImage.includes('alpine');
 
     let dockerfile = `FROM ${baseImage}\n\n`;
 
     // Clone the repository inside Docker
     dockerfile += `# Clone repository\n`;
-    dockerfile += `RUN apk add --no-cache git && \\\n`;
+    if (isAlpine) {
+      dockerfile += `RUN apk add --no-cache git && \\\n`;
+    } else {
+      dockerfile += `RUN apt-get update && apt-get install -y git && rm -rf /var/lib/apt/lists/* && \\\n`;
+    }
     dockerfile += `    git clone -b ${branch} ${gitUrl} ${workdir}\n\n`;
 
     dockerfile += `WORKDIR ${workdir}\n\n`;
 
     // Add non-root user for security
     dockerfile += `# Add non-root user\n`;
-    dockerfile += `RUN addgroup -S appuser && adduser -S appuser -G appuser && \\\n`;
+    if (isAlpine) {
+      dockerfile += `RUN addgroup -S appuser && adduser -S appuser -G appuser && \\\n`;
+    } else {
+      dockerfile += `RUN groupadd -r appuser && useradd -r -g appuser appuser && \\\n`;
+    }
     dockerfile += `    chown -R appuser:appuser ${workdir}\n\n`;
 
     dockerfile += `USER appuser\n\n`;
@@ -398,7 +464,7 @@ export class ContainerService {
       ? buildCommand
       : installCommand
       ? installCommand
-      : 'npm install && npm run build';
+      : 'yarn install && yarn run build';
 
     dockerfile += `# Install dependencies and build\n`;
     dockerfile += `RUN ${buildCmd}\n\n`;
@@ -409,7 +475,7 @@ export class ContainerService {
     // Start command
     const cmdArray = startCommand
       ? startCommand.split(' ').map(s => `"${s}"`).join(', ')
-      : '"npm", "start"';
+      : '"yarn", "start"';
 
     dockerfile += `# Start application\n`;
     dockerfile += `CMD [${cmdArray}]\n`;

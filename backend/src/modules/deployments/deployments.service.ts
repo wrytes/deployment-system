@@ -24,11 +24,12 @@ export interface CreateDeploymentFromGitDto {
   environmentId: string;
   gitUrl: string;
   branch?: string;
+  baseImage?: string; // e.g., "node:22", "python:3.11-alpine"
   buildContext?: string;
   dockerfile?: string;
-  installCommand?: string; // e.g., "npm install" or "pip install -r requirements.txt"
-  buildCommand?: string; // e.g., "npm run build" or "go build"
-  startCommand?: string; // e.g., "npm start" or "python app.py"
+  installCommand?: string; // e.g., "yarn install" or "pip install -r requirements.txt"
+  buildCommand?: string; // e.g., "yarn run build" or "go build"
+  startCommand?: string; // e.g., "yarn start" or "python app.py"
   replicas?: number;
   ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>;
   envVars?: Record<string, string>;
@@ -386,6 +387,7 @@ export class DeploymentsService {
       environment.overlayNetworkId,
       dto.gitUrl,
       dto.branch,
+      dto.baseImage,
       dto.buildContext,
       dto.dockerfile,
       dto.installCommand,
@@ -409,12 +411,14 @@ export class DeploymentsService {
     networkName: string,
     gitUrl: string,
     branch?: string,
+    baseImage?: string,
     buildContext?: string,
     dockerfile?: string,
     installCommand?: string,
     buildCommand?: string,
     startCommand?: string,
   ): Promise<void> {
+    this.logger.log(`Processing deployment from Git: ${deploymentId}`);
     try {
       const deployment = await this.prisma.deployment.findUnique({
         where: { id: deploymentId },
@@ -431,22 +435,19 @@ export class DeploymentsService {
         data: { status: DeploymentStatus.PULLING_IMAGE }, // Reusing status for building
       });
 
-      this.logger.log(`Building image from Git: ${gitUrl}`);
-
       // Build image from Git
       const fullImageName = await this.containerService.buildImageFromGit({
         gitUrl,
         imageName: deployment.image,
         tag: deployment.tag || 'latest',
         branch,
+        baseImage,
         buildContext,
         dockerfile,
         installCommand,
         buildCommand,
         startCommand,
       });
-
-      this.logger.log(`Image built successfully: ${fullImageName}`);
 
       // Step 2: Create volumes if needed
       if (deployment.volumes && Array.isArray(deployment.volumes)) {

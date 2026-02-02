@@ -13,7 +13,7 @@ if [ -z "$API_KEY" ]; then
 fi
 
 ENV_ID="${ENV_ID:-}"
-GIT_URL="${GIT_URL:-https://github.com/imranhsayed/next-js-app}"
+GIT_URL="${GIT_URL:-https://github.com/Frankencoin-ZCHF/frankencoin-dapp.git}"
 BRANCH="${BRANCH:-main}"
 HOST_PORT="${HOST_PORT:-3001}"
 CONTAINER_PORT="${CONTAINER_PORT:-3000}"
@@ -39,9 +39,10 @@ curl -s -X POST http://localhost:3000/deployments/from-git \
     \"environmentId\": \"${ENV_ID}\",
     \"gitUrl\": \"${GIT_URL}\",
     \"branch\": \"${BRANCH}\",
-    \"installCommand\": \"npm install\",
-    \"buildCommand\": \"npm run build\",
-    \"startCommand\": \"npm start\",
+    \"baseImage\": \"node:22\",
+    \"installCommand\": \"yarn install\",
+    \"buildCommand\": \"yarn run build\",
+    \"startCommand\": \"yarn start\",
     \"ports\": [{
       \"host\": ${HOST_PORT},
       \"container\": ${CONTAINER_PORT}
