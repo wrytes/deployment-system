@@ -17,14 +17,10 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
         const webhookPath = configService.get<string>('telegram.webhookPath');
 
         if (!botToken) {
-          // If no bot token, return minimal config to prevent crashes
+          // If no bot token, return minimal config with no launch
           return {
             token: 'disabled',
-            options: {
-              telegram: {
-                webhookReply: false,
-              },
-            },
+            launchOptions: false, // Prevent Telegraf from launching
           };
         }
 

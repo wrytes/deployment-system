@@ -2,7 +2,8 @@ import { Controller, Post, Body, UseGuards, Logger } from '@nestjs/common';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { ScopesGuard } from '../common/guards/scopes.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User, ApiKeyScope } from '@prisma/client';
+import type { User } from '@prisma/client';
+import { ApiKeyScope } from '@prisma/client';
 import { EnvironmentsService } from '../modules/environments/environments.service';
 import { DeploymentsService } from '../modules/deployments/deployments.service';
 

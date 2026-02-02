@@ -18,7 +18,7 @@ export class VolumeService {
     try {
       this.logger.log(`Creating volume: ${name}`);
 
-      const volume = await this.docker.createVolume({
+      await this.docker.createVolume({
         Name: name,
         Driver: 'local',
         Labels: {
@@ -28,7 +28,10 @@ export class VolumeService {
       });
 
       this.logger.log(`Volume created: ${name}`);
-      return volume;
+
+      // Inspect the volume to get full details
+      const volume = this.docker.getVolume(name);
+      return await volume.inspect();
     } catch (error) {
       if (error.statusCode === 409) {
         this.logger.warn(`Volume already exists: ${name}`);

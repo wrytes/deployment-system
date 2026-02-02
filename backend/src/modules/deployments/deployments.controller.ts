@@ -8,12 +8,14 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
-import { DeploymentsService, CreateDeploymentDto } from './deployments.service';
+import { DeploymentsService } from './deployments.service';
+import type { CreateDeploymentDto } from './deployments.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { ScopesGuard } from '../../common/guards/scopes.guard';
 import { RequireScopes } from '../../common/decorators/require-scopes.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User, ApiKeyScope } from '@prisma/client';
+import type { User } from '@prisma/client';
+import { ApiKeyScope } from '@prisma/client';
 
 @Controller('deployments')
 @UseGuards(ApiKeyGuard, ScopesGuard)

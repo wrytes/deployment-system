@@ -1,8 +1,16 @@
-import { Injectable, OnModuleInit, OnModuleDestroy, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  OnModuleInit,
+  OnModuleDestroy,
+  Logger,
+} from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 
 @Injectable()
-export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+export class PrismaService
+  extends PrismaClient
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(PrismaService.name);
 
   constructor() {
@@ -17,20 +25,20 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
     // Log queries in development
     if (process.env.NODE_ENV === 'development') {
-      // @ts-ignore
-      this.$on('query', (e) => {
+      // @ts-expect-error - Prisma event types are not fully typed
+      this.$on('query', (e: any) => {
         this.logger.debug(`Query: ${e.query}`);
         this.logger.debug(`Duration: ${e.duration}ms`);
       });
     }
 
-    // @ts-ignore
-    this.$on('error', (e) => {
+    // @ts-expect-error - Prisma event types are not fully typed
+    this.$on('error', (e: any) => {
       this.logger.error(`Prisma Error: ${e.message}`);
     });
 
-    // @ts-ignore
-    this.$on('warn', (e) => {
+    // @ts-expect-error - Prisma event types are not fully typed
+    this.$on('warn', (e: any) => {
       this.logger.warn(`Prisma Warning: ${e.message}`);
     });
   }

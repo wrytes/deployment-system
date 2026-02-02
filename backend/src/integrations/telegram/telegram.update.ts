@@ -23,6 +23,11 @@ export class TelegramUpdate {
   @Start()
   async onStart(@Ctx() ctx: Context) {
     try {
+      if (!ctx.from) {
+        await ctx.reply('Unable to identify user.');
+        return;
+      }
+
       const telegramId = BigInt(ctx.from.id);
       const telegramHandle = ctx.from.username;
 
@@ -57,6 +62,11 @@ export class TelegramUpdate {
   @Command('api_create')
   async onApiCreate(@Ctx() ctx: Context) {
     try {
+      if (!ctx.from) {
+        await ctx.reply('Unable to identify user.');
+        return;
+      }
+
       const telegramId = BigInt(ctx.from.id);
       const telegramHandle = ctx.from.username;
 
@@ -101,6 +111,11 @@ export class TelegramUpdate {
   @Command('api_list')
   async onApiList(@Ctx() ctx: Context) {
     try {
+      if (!ctx.from) {
+        await ctx.reply('Unable to identify user.');
+        return;
+      }
+
       const telegramId = BigInt(ctx.from.id);
 
       // Get user
@@ -146,6 +161,11 @@ export class TelegramUpdate {
   @Command('api_revoke')
   async onApiRevoke(@Ctx() ctx: Context) {
     try {
+      if (!ctx.from) {
+        await ctx.reply('Unable to identify user.');
+        return;
+      }
+
       const telegramId = BigInt(ctx.from.id);
       const message = (ctx.message as any).text;
       const parts = message.split(' ');

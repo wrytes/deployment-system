@@ -36,14 +36,14 @@ export class ContainerService {
     this.logger.log(`Pulling image: ${fullImage}`);
 
     return new Promise((resolve, reject) => {
-      this.docker.pull(fullImage, (err, stream) => {
+      this.docker.pull(fullImage, (err: any, stream: any) => {
         if (err) {
           return reject(err);
         }
 
         this.docker.modem.followProgress(
           stream,
-          (err, output) => {
+          (err: any, output: any) => {
             if (err) {
               this.logger.error(`Failed to pull image ${fullImage}: ${err.message}`);
               return reject(err);
@@ -240,14 +240,14 @@ export class ContainerService {
         timestamps: true,
       });
 
-      return logs.toString('utf-8');
+      return logs.toString();
     } catch (error) {
       this.logger.error(`Failed to get logs for service ${nameOrId}: ${error.message}`);
       throw error;
     }
   }
 
-  async listServices(filters?: any): Promise<Docker.ServiceInspectResponse[]> {
+  async listServices(filters?: any): Promise<any[]> {
     try {
       const services = await this.docker.listServices({ filters });
 

@@ -11,7 +11,7 @@ import {
 import { AuthService } from './auth.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
-import { User } from '@prisma/client';
+import type { User } from '@prisma/client';
 
 @Controller('auth')
 export class AuthController {
