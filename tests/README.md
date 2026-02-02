@@ -70,6 +70,18 @@ DEPLOYMENT_ID="<deployment-id>" TAIL="50" ./tests/4-view-logs.sh
 ENV_ID="cml5hqxh60001n2m5e2ra686d" ./tests/6-delete-environment.sh
 ```
 
+### 7. Deploy from Git Repository
+
+```bash
+ENV_ID="<env-id>" ./tests/7-deploy-from-git.sh
+
+# Deploy different repository
+ENV_ID="<env-id>" GIT_URL="https://github.com/user/repo" BRANCH="develop" ./tests/7-deploy-from-git.sh
+
+# Custom port
+ENV_ID="<env-id>" HOST_PORT="8080" CONTAINER_PORT="8080" ./tests/7-deploy-from-git.sh
+```
+
 ## Complete Workflow Example
 
 ```bash
@@ -110,6 +122,8 @@ curl http://localhost:8080
 - `HOST_PORT` - Host port (default: 8080)
 - `CONTAINER_PORT` - Container port (default: 80)
 - `TAIL` - Number of log lines (default: 100)
+- `GIT_URL` - Git repository URL (default: https://github.com/imranhsayed/next-js-app)
+- `BRANCH` - Git branch (default: main)
 
 ## Examples
 
@@ -126,4 +140,19 @@ ENV_ID="<env-id>" IMAGE="postgres" TAG="16-alpine" HOST_PORT="5433" CONTAINER_PO
 ### Deploy Custom App
 ```bash
 ENV_ID="<env-id>" IMAGE="myapp" TAG="latest" HOST_PORT="3000" CONTAINER_PORT="3000" ./tests/2-deploy-container.sh
+```
+
+### Deploy Next.js App from Git
+```bash
+ENV_ID="<env-id>" ./tests/7-deploy-from-git.sh
+```
+
+### Deploy Python Flask App from Git
+```bash
+ENV_ID="<env-id>" \
+  GIT_URL="https://github.com/user/flask-app" \
+  BRANCH="main" \
+  HOST_PORT="5000" \
+  CONTAINER_PORT="5000" \
+  ./tests/7-deploy-from-git.sh
 ```

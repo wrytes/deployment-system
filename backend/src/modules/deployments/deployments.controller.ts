@@ -9,7 +9,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { DeploymentsService } from './deployments.service';
-import type { CreateDeploymentDto } from './deployments.service';
+import type { CreateDeploymentDto, CreateDeploymentFromGitDto } from './deployments.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { ScopesGuard } from '../../common/guards/scopes.guard';
 import { RequireScopes } from '../../common/decorators/require-scopes.decorator';
@@ -30,6 +30,16 @@ export class DeploymentsController {
     @Body() dto: CreateDeploymentDto,
   ) {
     return this.deploymentsService.createDeployment(user.id, dto);
+  }
+
+  @Post('from-git')
+  @RequireScopes(ApiKeyScope.DEPLOYMENTS_WRITE)
+  @Throttle({ default: { limit: 3, ttl: 60000 } }) // 3 Git deployments per minute (more resource intensive)
+  async createDeploymentFromGit(
+    @CurrentUser() user: User,
+    @Body() dto: CreateDeploymentFromGitDto,
+  ) {
+    return this.deploymentsService.createDeploymentFromGit(user.id, dto);
   }
 
   @Get('job/:jobId')

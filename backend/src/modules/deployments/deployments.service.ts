@@ -20,6 +20,21 @@ export interface CreateDeploymentDto {
   volumes?: Array<{ name: string; path: string; readOnly?: boolean }>;
 }
 
+export interface CreateDeploymentFromGitDto {
+  environmentId: string;
+  gitUrl: string;
+  branch?: string;
+  buildContext?: string;
+  dockerfile?: string;
+  installCommand?: string; // e.g., "npm install" or "pip install -r requirements.txt"
+  buildCommand?: string; // e.g., "npm run build" or "go build"
+  startCommand?: string; // e.g., "npm start" or "python app.py"
+  replicas?: number;
+  ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>;
+  envVars?: Record<string, string>;
+  volumes?: Array<{ name: string; path: string; readOnly?: boolean }>;
+}
+
 @Injectable()
 export class DeploymentsService {
   private readonly logger = new Logger(DeploymentsService.name);
@@ -321,6 +336,206 @@ export class DeploymentsService {
         `Failed to get logs for deployment ${deploymentId}: ${error.message}`,
       );
       throw error;
+    }
+  }
+
+  async createDeploymentFromGit(userId: string, dto: CreateDeploymentFromGitDto) {
+    this.logger.log(
+      `Creating deployment from Git for environment ${dto.environmentId}`,
+    );
+
+    // Verify environment exists and belongs to user
+    const environment = await this.prisma.environment.findFirst({
+      where: {
+        id: dto.environmentId,
+        userId,
+      },
+    });
+
+    if (!environment) {
+      throw new NotFoundException('Environment not found');
+    }
+
+    if (environment.status !== EnvironmentStatus.ACTIVE) {
+      throw new BadRequestException('Environment is not active');
+    }
+
+    // Generate job ID and image name
+    const jobId = nanoid(this.JOB_ID_LENGTH);
+    const imageName = `deployment-${environment.name}-${Date.now()}`.toLowerCase();
+    const tag = dto.branch || 'latest';
+
+    // Create deployment record
+    const deployment = await this.prisma.deployment.create({
+      data: {
+        environmentId: dto.environmentId,
+        jobId,
+        image: imageName,
+        tag,
+        replicas: dto.replicas || 1,
+        ports: dto.ports || [],
+        envVars: dto.envVars || {},
+        volumes: dto.volumes || undefined,
+        status: DeploymentStatus.PENDING,
+      },
+    });
+
+    // Start async deployment process
+    this.processDeploymentFromGit(
+      deployment.id,
+      environment.overlayNetworkId,
+      dto.gitUrl,
+      dto.branch,
+      dto.buildContext,
+      dto.dockerfile,
+      dto.installCommand,
+      dto.buildCommand,
+      dto.startCommand,
+    ).catch((error) => {
+      this.logger.error(
+        `Deployment ${deployment.id} failed: ${error.message}`,
+      );
+    });
+
+    return {
+      jobId,
+      deploymentId: deployment.id,
+      status: deployment.status,
+    };
+  }
+
+  private async processDeploymentFromGit(
+    deploymentId: string,
+    networkName: string,
+    gitUrl: string,
+    branch?: string,
+    buildContext?: string,
+    dockerfile?: string,
+    installCommand?: string,
+    buildCommand?: string,
+    startCommand?: string,
+  ): Promise<void> {
+    try {
+      const deployment = await this.prisma.deployment.findUnique({
+        where: { id: deploymentId },
+        include: { environment: true },
+      });
+
+      if (!deployment) {
+        throw new Error('Deployment not found');
+      }
+
+      // Step 1: Update status to BUILDING
+      await this.prisma.deployment.update({
+        where: { id: deploymentId },
+        data: { status: DeploymentStatus.PULLING_IMAGE }, // Reusing status for building
+      });
+
+      this.logger.log(`Building image from Git: ${gitUrl}`);
+
+      // Build image from Git
+      const fullImageName = await this.containerService.buildImageFromGit({
+        gitUrl,
+        imageName: deployment.image,
+        tag: deployment.tag || 'latest',
+        branch,
+        buildContext,
+        dockerfile,
+        installCommand,
+        buildCommand,
+        startCommand,
+      });
+
+      this.logger.log(`Image built successfully: ${fullImageName}`);
+
+      // Step 2: Create volumes if needed
+      if (deployment.volumes && Array.isArray(deployment.volumes)) {
+        await this.prisma.deployment.update({
+          where: { id: deploymentId },
+          data: { status: DeploymentStatus.CREATING_VOLUMES },
+        });
+
+        for (const volume of deployment.volumes as any[]) {
+          const volumeName = `${deployment.environment.name}_${volume.name}`;
+          await this.volumeService.createVolume(volumeName, {
+            'com.deployment-platform.environment': deployment.environmentId,
+            'com.deployment-platform.deployment': deploymentId,
+          });
+        }
+      }
+
+      // Step 3: Create service
+      await this.prisma.deployment.update({
+        where: { id: deploymentId },
+        data: { status: DeploymentStatus.STARTING_CONTAINERS },
+      });
+
+      const serviceName = `${deployment.environment.name}_${deployment.image}_${Date.now()}`;
+
+      // Prepare volumes for Docker
+      const volumes: any[] = [];
+      if (deployment.volumes && Array.isArray(deployment.volumes)) {
+        for (const vol of deployment.volumes as any[]) {
+          const volumeName = `${deployment.environment.name}_${vol.name}`;
+          volumes.push({
+            name: volumeName,
+            path: vol.path,
+            readOnly: vol.readOnly || false,
+          });
+        }
+      }
+
+      // Create service
+      await this.containerService.createService({
+        name: serviceName,
+        image: deployment.image,
+        tag: deployment.tag || 'latest',
+        replicas: deployment.replicas,
+        env: deployment.envVars as Record<string, string>,
+        ports: deployment.ports as any[],
+        volumes: volumes,
+        networks: [networkName],
+        labels: {
+          'com.deployment-platform.environment': deployment.environmentId,
+          'com.deployment-platform.deployment': deploymentId,
+          'com.deployment-platform.git-url': gitUrl,
+        },
+      });
+
+      // Create container record
+      await this.prisma.container.create({
+        data: {
+          deploymentId: deployment.id,
+          name: serviceName,
+          status: ContainerStatus.RUNNING,
+        },
+      });
+
+      // Step 4: Update status to RUNNING
+      await this.prisma.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          status: DeploymentStatus.RUNNING,
+          completedAt: new Date(),
+        },
+      });
+
+      this.logger.log(`Deployment ${deploymentId} from Git completed successfully`);
+    } catch (error) {
+      this.logger.error(
+        `Deployment ${deploymentId} from Git failed: ${error.message}`,
+        error.stack,
+      );
+
+      // Update status to FAILED
+      await this.prisma.deployment.update({
+        where: { id: deploymentId },
+        data: {
+          status: DeploymentStatus.FAILED,
+          errorMessage: error.message,
+          completedAt: new Date(),
+        },
+      });
     }
   }
 }

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { DockerService } from './docker.service';
 import Docker from 'dockerode';
+import * as Tar from 'tar-stream';
 
 export interface ServiceConfig {
   name: string;
@@ -264,5 +265,163 @@ export class ContainerService {
       this.logger.error(`Failed to list services: ${error.message}`);
       throw error;
     }
+  }
+
+  async buildImageFromGit(options: {
+    gitUrl: string;
+    imageName: string;
+    tag?: string;
+    branch?: string;
+    buildContext?: string;
+    dockerfile?: string;
+    installCommand?: string;
+    buildCommand?: string;
+    startCommand?: string;
+  }): Promise<string> {
+    const {
+      gitUrl,
+      imageName,
+      tag = 'latest',
+      branch = 'main',
+      installCommand,
+      buildCommand,
+      startCommand,
+    } = options;
+
+    const fullImageName = `${imageName}:${tag}`;
+    this.logger.log(`Building image from Git: ${gitUrl} (branch: ${branch})`);
+
+    try {
+      // Generate Dockerfile content
+      const dockerfileContent = this.generateDockerfile({
+        gitUrl,
+        branch,
+        installCommand,
+        buildCommand,
+        startCommand,
+      });
+
+      // Create in-memory tar stream with Dockerfile
+      const tarStream = this.createTarStream(dockerfileContent);
+
+      // Build image from tar stream
+      return await this.buildImageFromStream(tarStream, fullImageName);
+    } catch (error) {
+      this.logger.error(`Failed to build image from Git: ${error.message}`);
+      throw error;
+    }
+  }
+
+  private createTarStream(dockerfileContent: string): Tar.Pack {
+    const pack = Tar.pack();
+    pack.entry({ name: 'Dockerfile' }, dockerfileContent);
+    pack.finalize();
+    return pack;
+  }
+
+  private async buildImageFromStream(
+    tarStream: Tar.Pack,
+    imageName: string,
+  ): Promise<string> {
+    return new Promise((resolve, reject) => {
+      this.docker.buildImage(
+        tarStream,
+        {
+          t: imageName,
+        },
+        (err: any, stream: any) => {
+          if (err) {
+            this.logger.error(`Failed to start build: ${err.message}`);
+            return reject(err);
+          }
+
+          if (!stream) {
+            return reject(new Error('No response stream from Docker'));
+          }
+
+          this.docker.modem.followProgress(
+            stream,
+            (err: any, output: any) => {
+              if (err) {
+                this.logger.error(`Build failed: ${err.message}`);
+                return reject(err);
+              }
+              this.logger.log(`Image built successfully: ${imageName}`);
+              resolve(imageName);
+            },
+            (event) => {
+              if (event.stream) {
+                this.logger.debug(`Build: ${event.stream.trim()}`);
+              }
+              if (event.error) {
+                this.logger.error(`Build error: ${event.error}`);
+              }
+            },
+          );
+        },
+      );
+    });
+  }
+
+  private generateDockerfile(options: {
+    gitUrl: string;
+    branch: string;
+    installCommand?: string;
+    buildCommand?: string;
+    startCommand?: string;
+  }): string {
+    const {
+      gitUrl,
+      branch,
+      installCommand,
+      buildCommand,
+      startCommand,
+    } = options;
+
+    // Default to Node.js base image
+    const baseImage = 'node:18-alpine';
+    const workdir = '/app';
+
+    let dockerfile = `FROM ${baseImage}\n\n`;
+    dockerfile += `WORKDIR ${workdir}\n\n`;
+
+    // Clone the repository inside Docker
+    dockerfile += `# Clone repository\n`;
+    dockerfile += `RUN apk add --no-cache git && \\\n`;
+    dockerfile += `    git clone -b ${branch} ${gitUrl} ${workdir}\n\n`;
+
+    dockerfile += `WORKDIR ${workdir}\n\n`;
+
+    // Add non-root user for security
+    dockerfile += `# Add non-root user\n`;
+    dockerfile += `RUN addgroup -S appuser && adduser -S appuser -G appuser && \\\n`;
+    dockerfile += `    chown -R appuser:appuser ${workdir}\n\n`;
+
+    dockerfile += `USER appuser\n\n`;
+
+    // Install and build
+    const buildCmd = installCommand && buildCommand
+      ? `${installCommand} && ${buildCommand}`
+      : buildCommand
+      ? buildCommand
+      : installCommand
+      ? installCommand
+      : 'npm install && npm run build';
+
+    dockerfile += `# Install dependencies and build\n`;
+    dockerfile += `RUN ${buildCmd}\n\n`;
+
+    // Expose port
+    dockerfile += `EXPOSE 3000\n\n`;
+
+    // Start command
+    const cmdArray = startCommand
+      ? startCommand.split(' ').map(s => `"${s}"`).join(', ')
+      : '"npm", "start"';
+
+    dockerfile += `# Start application\n`;
+    dockerfile += `CMD [${cmdArray}]\n`;
+
+    return dockerfile;
   }
 }
