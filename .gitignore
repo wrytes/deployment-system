@@ -50,3 +50,6 @@ temp/
 # SSL Certificates
 nginx/ssl/
 certbot/
+
+# Test environment
+tests/.env

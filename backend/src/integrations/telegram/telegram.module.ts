@@ -36,7 +36,14 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
               hookPath: webhookPath,
             },
           };
+        } else {
+          // Enable polling for development
+          config.launchOptions = {
+            dropPendingUpdates: true,
+          };
         }
+
+        console.log('Telegram bot configured with token:', botToken.substring(0, 10) + '...');
 
         return config;
       },

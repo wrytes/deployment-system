@@ -1,6 +1,6 @@
-import { Update, Start, Command, Ctx } from 'nestjs-telegraf';
-import { Context } from 'telegraf';
-import { Logger } from '@nestjs/common';
+import { Update, Start, Command, Ctx, InjectBot } from 'nestjs-telegraf';
+import { Context, Telegraf } from 'telegraf';
+import { Logger, OnModuleInit } from '@nestjs/common';
 import { AuthService } from '../../modules/auth/auth.service';
 import { EnvironmentsService } from '../../modules/environments/environments.service';
 import { DeploymentsService } from '../../modules/deployments/deployments.service';
@@ -9,16 +9,33 @@ import { ConfigService } from '@nestjs/config';
 import { ApiKeyScope } from '@prisma/client';
 
 @Update()
-export class TelegramUpdate {
+export class TelegramUpdate implements OnModuleInit {
   private readonly logger = new Logger(TelegramUpdate.name);
 
   constructor(
+    @InjectBot() private readonly bot: Telegraf<Context>,
     private readonly authService: AuthService,
     private readonly environmentsService: EnvironmentsService,
     private readonly deploymentsService: DeploymentsService,
     private readonly telegramService: TelegramService,
     private readonly configService: ConfigService,
   ) {}
+
+  async onModuleInit() {
+    // Set bot commands menu
+    try {
+      await this.bot.telegram.setMyCommands([
+        { command: 'start', description: 'Initialize your account' },
+        { command: 'api_create', description: 'Generate a new API key' },
+        { command: 'api_list', description: 'List your active API keys' },
+        { command: 'api_revoke', description: 'Revoke an API key' },
+        { command: 'help', description: 'Show help message' },
+      ]);
+      this.logger.log('Bot commands menu configured');
+    } catch (error) {
+      this.logger.error(`Failed to set bot commands: ${error.message}`);
+    }
+  }
 
   @Start()
   async onStart(@Ctx() ctx: Context) {
@@ -131,7 +148,7 @@ export class TelegramUpdate {
         return;
       }
 
-      let message = '🔑 *Your API Keys*\n\n';
+      let message = '🔑 Your API Keys\n\n';
 
       for (const key of keys) {
         const expiry = key.expiresAt
@@ -141,9 +158,12 @@ export class TelegramUpdate {
           ? `Last used: ${key.lastUsedAt.toLocaleString()}`
           : 'Never used';
 
+        // Escape underscores in scopes for display
+        const scopesText = key.scopes.join(', ').replace(/_/g, ' ');
+
         message +=
-          `Key ID: \`${key.keyId}\`\n` +
-          `Scopes: ${key.scopes.join(', ')}\n` +
+          `Key ID: ${key.keyId}\n` +
+          `Scopes: ${scopesText}\n` +
           `${expiry}\n` +
           `${lastUsed}\n` +
           `Created: ${key.createdAt.toLocaleString()}\n\n`;
@@ -151,7 +171,7 @@ export class TelegramUpdate {
 
       message += `Use /api_revoke <key_id> to revoke a key.`;
 
-      await ctx.reply(message, { parse_mode: 'Markdown' });
+      await ctx.reply(message);
     } catch (error) {
       this.logger.error(`Error in /api_list command: ${error.message}`);
       await ctx.reply('Failed to list API keys. Please try again.');
@@ -205,22 +225,22 @@ export class TelegramUpdate {
   @Command('help')
   async onHelp(@Ctx() ctx: Context) {
     const helpText =
-      `🚀 *Docker Swarm Deployment Platform*\n\n` +
-      `*Available Commands:*\n\n` +
+      `🚀 Docker Swarm Deployment Platform\n\n` +
+      `Available Commands:\n\n` +
       `/start - Initialize your account\n` +
       `/api_create - Generate a new API key\n` +
       `/api_list - List your active API keys\n` +
       `/api_revoke <key_id> - Revoke an API key\n` +
       `/help - Show this help message\n\n` +
-      `*Getting Started:*\n` +
+      `Getting Started:\n` +
       `1. Use /api_create to get an API key\n` +
       `2. Click the magic link to retrieve your key\n` +
       `3. Use the API key with the REST API or MCP server\n\n` +
-      `*API Documentation:*\n` +
+      `API Documentation:\n` +
       `POST /environments - Create environment\n` +
       `POST /deployments - Deploy container\n` +
       `POST /environments/:id/public - Enable public access`;
 
-    await ctx.reply(helpText, { parse_mode: 'Markdown' });
+    await ctx.reply(helpText);
   }
 }
