@@ -17,6 +17,8 @@ import { nanoid } from 'nanoid';
 import {
   DeploymentSuccessEvent,
   DeploymentFailedEvent,
+  DeploymentStartedEvent,
+  DeploymentStoppedEvent,
 } from '../../common/events/notification.events';
 
 export interface CreateDeploymentDto {
@@ -138,6 +140,20 @@ export class DeploymentsService {
         },
       });
 
+      // Emit deployment started event
+      this.eventEmitter.emit(
+        'deployment.started',
+        new DeploymentStartedEvent(
+          deployment.environment.userId,
+          deploymentId,
+          deployment.environmentId,
+          deployment.environment.name,
+          deployment.image,
+          deployment.tag,
+          false, // isGitDeployment
+        ),
+      );
+
       // Pull image
       this.logger.log(`Pulling image ${deployment.image}:${deployment.tag}`);
       await this.containerService.pullImage(deployment.image, deployment.tag);
@@ -157,7 +173,7 @@ export class DeploymentsService {
 
       if (volumes && volumes.length > 0) {
         for (const volume of volumes) {
-          const volumeName = `${deployment.environment.name}_${volume.name}`;
+          const volumeName = `vol_${deployment.environment.name}_${volume.name}`;
           this.logger.log(`Creating volume ${volumeName}`);
 
           await this.volumeService.createVolume(volumeName, {
@@ -182,8 +198,8 @@ export class DeploymentsService {
         data: { status: DeploymentStatus.STARTING_CONTAINERS },
       });
 
-      // Create service name
-      const serviceName = `${deployment.environment.name}_${deployment.image.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}`;
+      // Create service name using jobId (stays under 63 char limit)
+      const serviceName = `job_${deployment.environment.name}_${deployment.jobId}`;
 
       // Create Docker Swarm service
       this.logger.log(`Creating service ${serviceName}`);
@@ -412,6 +428,21 @@ export class DeploymentsService {
       throw new NotFoundException('Deployment not found');
     }
 
+    // Emit deployment stopped event if deployment was running
+    if (deployment.status === DeploymentStatus.RUNNING) {
+      this.eventEmitter.emit(
+        'deployment.stopped',
+        new DeploymentStoppedEvent(
+          deployment.environment.userId,
+          deploymentId,
+          deployment.environmentId,
+          deployment.environment.name,
+          deployment.image,
+          deployment.tag,
+        ),
+      );
+    }
+
     // Remove Docker service
     if (deployment.service?.name) {
       try {
@@ -484,8 +515,8 @@ export class DeploymentsService {
 
     // Generate job ID and image name
     const jobId = nanoid(this.JOB_ID_LENGTH);
-    const imageName =
-      `deployment-${environment.name}-${Date.now()}`.toLowerCase();
+    const timestampSeconds = Math.floor(Date.now() / 1000);
+    const imageName = `img_${environment.name}_${timestampSeconds}`.toLowerCase();
     const tag = dto.branch || 'latest';
 
     // Create deployment record
@@ -552,8 +583,25 @@ export class DeploymentsService {
       // Step 1: Update status to BUILDING
       await this.prisma.deployment.update({
         where: { id: deploymentId },
-        data: { status: DeploymentStatus.PULLING_IMAGE }, // Reusing status for building
+        data: {
+          status: DeploymentStatus.PULLING_IMAGE, // Reusing status for building
+          startedAt: new Date(),
+        },
       });
+
+      // Emit deployment started event
+      this.eventEmitter.emit(
+        'deployment.started',
+        new DeploymentStartedEvent(
+          deployment.environment.userId,
+          deploymentId,
+          deployment.environmentId,
+          deployment.environment.name,
+          deployment.image,
+          deployment.tag || 'latest',
+          true, // isGitDeployment
+        ),
+      );
 
       // Build image from Git
       const fullImageName = await this.containerService.buildImageFromGit({
@@ -577,7 +625,7 @@ export class DeploymentsService {
         });
 
         for (const volume of deployment.volumes as any[]) {
-          const volumeName = `${deployment.environment.name}_${volume.name}`;
+          const volumeName = `vol_${deployment.environment.name}_${volume.name}`;
           await this.volumeService.createVolume(volumeName, {
             'com.deployment-platform.environment': deployment.environmentId,
             'com.deployment-platform.deployment': deploymentId,
@@ -591,13 +639,14 @@ export class DeploymentsService {
         data: { status: DeploymentStatus.STARTING_CONTAINERS },
       });
 
-      const serviceName = `${deployment.environment.name}_${deployment.image}_${Date.now()}`;
+      // Create service name using jobId (stays under 63 char limit)
+      const serviceName = `job_${deployment.environment.name}_${deployment.jobId}`;
 
       // Prepare volumes for Docker
       const volumes: any[] = [];
       if (deployment.volumes && Array.isArray(deployment.volumes)) {
         for (const vol of deployment.volumes as any[]) {
-          const volumeName = `${deployment.environment.name}_${vol.name}`;
+          const volumeName = `vol_${deployment.environment.name}_${vol.name}`;
           volumes.push({
             name: volumeName,
             path: vol.path,

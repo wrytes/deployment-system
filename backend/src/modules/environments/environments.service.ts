@@ -69,8 +69,7 @@ export class EnvironmentsService {
     }
 
     // Generate unique overlay network ID
-    const timestamp = Date.now();
-    const overlayNetworkId = `overlay_env_${name}_${timestamp}`;
+    const overlayNetworkId = `net_${name}`;
 
     // Create database record first (CREATING status)
     const environment = await this.prisma.environment.create({

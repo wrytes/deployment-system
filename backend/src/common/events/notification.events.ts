@@ -89,3 +89,30 @@ export class DeploymentFailedEvent extends NotificationEvent {
     super(userId);
   }
 }
+
+export class DeploymentStartedEvent extends NotificationEvent {
+  constructor(
+    userId: string,
+    public readonly deploymentId: string,
+    public readonly environmentId: string,
+    public readonly environmentName: string,
+    public readonly image: string,
+    public readonly tag: string,
+    public readonly isGitDeployment: boolean,
+  ) {
+    super(userId);
+  }
+}
+
+export class DeploymentStoppedEvent extends NotificationEvent {
+  constructor(
+    userId: string,
+    public readonly deploymentId: string,
+    public readonly environmentId: string,
+    public readonly environmentName: string,
+    public readonly image: string,
+    public readonly tag: string,
+  ) {
+    super(userId);
+  }
+}

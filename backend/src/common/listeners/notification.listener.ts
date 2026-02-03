@@ -9,6 +9,8 @@ import {
   EnvironmentMadePublicEvent,
   DeploymentSuccessEvent,
   DeploymentFailedEvent,
+  DeploymentStartedEvent,
+  DeploymentStoppedEvent,
 } from '../events/notification.events';
 
 @Injectable()
@@ -128,6 +130,42 @@ export class NotificationListener {
     );
   }
 
+  @OnEvent('deployment.started')
+  async handleDeploymentStarted(event: DeploymentStartedEvent) {
+    await this.sendNotification(
+      event.userId,
+      'DEPLOYMENT_STARTED',
+      async (user) => {
+        if (!user.notifyDeploymentStarted) return false;
+
+        const message = this.formatDeploymentStartedMessage(event);
+        await this.telegramService.sendMarkdownMessage(
+          Number(user.telegramId),
+          message,
+        );
+        return true;
+      },
+    );
+  }
+
+  @OnEvent('deployment.stopped')
+  async handleDeploymentStopped(event: DeploymentStoppedEvent) {
+    await this.sendNotification(
+      event.userId,
+      'DEPLOYMENT_STOPPED',
+      async (user) => {
+        if (!user.notifyDeploymentStopped) return false;
+
+        const message = this.formatDeploymentStoppedMessage(event);
+        await this.telegramService.sendMarkdownMessage(
+          Number(user.telegramId),
+          message,
+        );
+        return true;
+      },
+    );
+  }
+
   private async sendNotification(
     userId: string,
     eventType: string,
@@ -219,6 +257,7 @@ export class NotificationListener {
 
     return (
       `✅ *Deployment Successful*\n\n` +
+      `Job ID: \`${event.deploymentId}\`\n` +
       `Environment: \`${event.environmentName}\`\n` +
       `Type: *${deploymentType}*\n` +
       `Image: \`${event.image}:${event.tag}\`\n` +
@@ -232,11 +271,41 @@ export class NotificationListener {
 
     return (
       `❌ *Deployment Failed*\n\n` +
+      `Job ID: \`${event.deploymentId}\`\n` +
       `Environment: \`${event.environmentName}\`\n` +
       `Type: *${deploymentType}*\n` +
       `Image: \`${event.image}\`\n` +
       `Status: *FAILED*\n\n` +
       `Error:\n\`\`\`\n${event.errorMessage}\n\`\`\``
+    );
+  }
+
+  private formatDeploymentStartedMessage(
+    event: DeploymentStartedEvent,
+  ): string {
+    const deploymentType = event.isGitDeployment ? 'Git' : 'Image';
+
+    return (
+      `🚀 *Deployment Started*\n\n` +
+      `Job ID: \`${event.deploymentId}\`\n` +
+      `Environment: \`${event.environmentName}\`\n` +
+      `Type: *${deploymentType}*\n` +
+      `Image: \`${event.image}:${event.tag}\`\n` +
+      `Status: *PULLING_IMAGE*\n\n` +
+      `Your deployment has begun processing.`
+    );
+  }
+
+  private formatDeploymentStoppedMessage(
+    event: DeploymentStoppedEvent,
+  ): string {
+    return (
+      `⏹️ *Deployment Stopped*\n\n` +
+      `Job ID: \`${event.deploymentId}\`\n` +
+      `Environment: \`${event.environmentName}\`\n` +
+      `Image: \`${event.image}:${event.tag}\`\n` +
+      `Status: *STOPPED*\n\n` +
+      `Your deployment has been stopped.`
     );
   }
 }

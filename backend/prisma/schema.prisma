@@ -21,7 +21,9 @@ model User {
   notifyEnvironmentActive      Boolean  @default(true) @map("notify_environment_active")
   notifyEnvironmentDeleted     Boolean  @default(true) @map("notify_environment_deleted")
   notifyEnvironmentMadePublic  Boolean  @default(true) @map("notify_environment_made_public")
+  notifyDeploymentStarted      Boolean  @default(true) @map("notify_deployment_started")
   notifyDeploymentSuccess      Boolean  @default(true) @map("notify_deployment_success")
+  notifyDeploymentStopped      Boolean  @default(true) @map("notify_deployment_stopped")
   notifyErrors                 Boolean  @default(true) @map("notify_errors")
 
   apiKeys         ApiKey[]
