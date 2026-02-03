@@ -4,6 +4,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { ScopesGuard } from '../common/guards/scopes.guard';
 import { EnvironmentsModule } from '../modules/environments/environments.module';
 import { DeploymentsModule } from '../modules/deployments/deployments.module';
+import { ClaudeSessionsModule } from '../modules/claude-sessions/claude-sessions.module';
 import { EnvironmentTools } from './tools/environment.tools';
 import { DeploymentTools } from './tools/deployment.tools';
 
@@ -11,6 +12,7 @@ import { DeploymentTools } from './tools/deployment.tools';
   imports: [
     EnvironmentsModule,
     DeploymentsModule,
+    ClaudeSessionsModule,
 
     // Initialize MCP server with multiple transports
     ReKogMcpModule.forRoot({

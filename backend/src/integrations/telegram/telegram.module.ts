@@ -6,6 +6,7 @@ import { TelegramUpdate } from './telegram.update';
 import { AuthModule } from '../../modules/auth/auth.module';
 import { EnvironmentsModule } from '../../modules/environments/environments.module';
 import { DeploymentsModule } from '../../modules/deployments/deployments.module';
+import { ClaudeSessionsModule } from '../../modules/claude-sessions/claude-sessions.module';
 
 @Module({
   imports: [
@@ -52,6 +53,7 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
     AuthModule,
     EnvironmentsModule,
     DeploymentsModule,
+    ClaudeSessionsModule,
   ],
   providers: [TelegramService, TelegramUpdate],
   exports: [TelegramService],

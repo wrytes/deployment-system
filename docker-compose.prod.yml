@@ -47,6 +47,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: deployment_platform_backend
+    user: root
     env_file:
       - ./backend/.env.production
     volumes:
