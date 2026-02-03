@@ -7,8 +7,6 @@ import { DeploymentsService } from '../../modules/deployments/deployments.servic
 import { TelegramService } from './telegram.service';
 import { ConfigService } from '@nestjs/config';
 import { ApiKeyScope } from '@prisma/client';
-import { ClaudeSessionsService } from '../../modules/claude-sessions/claude-sessions.service';
-import { ClaudeMcpProxyService } from '../../modules/claude-sessions/claude-mcp-proxy.service';
 
 @Update()
 export class TelegramUpdate implements OnModuleInit {
@@ -21,8 +19,6 @@ export class TelegramUpdate implements OnModuleInit {
     private readonly deploymentsService: DeploymentsService,
     private readonly telegramService: TelegramService,
     private readonly configService: ConfigService,
-    private readonly claudeSessionsService: ClaudeSessionsService,
-    private readonly claudeMcpProxyService: ClaudeMcpProxyService,
   ) {}
 
   async onModuleInit() {
@@ -30,9 +26,6 @@ export class TelegramUpdate implements OnModuleInit {
     try {
       await this.bot.telegram.setMyCommands([
         { command: 'start', description: 'Initialize your account' },
-        { command: 'claude_new', description: 'Create new AI project' },
-        { command: 'claude_list', description: 'List your AI projects' },
-        { command: 'claude_talk', description: 'Talk to AI project' },
         { command: 'api_create', description: 'Generate a new API key' },
         { command: 'api_list', description: 'List your active API keys' },
         { command: 'api_revoke', description: 'Revoke an API key' },
@@ -229,235 +222,12 @@ export class TelegramUpdate implements OnModuleInit {
     }
   }
 
-  @Command('claude_new')
-  async onClaudeNew(@Ctx() ctx: Context) {
-    try {
-      if (!ctx.from) {
-        await ctx.reply('Unable to identify user.');
-        return;
-      }
-
-      const telegramId = BigInt(ctx.from.id);
-      const user = await this.authService.findUserByTelegramId(telegramId);
-
-      if (!user) {
-        await ctx.reply('Please use /start to initialize your account first.');
-        return;
-      }
-
-      // Parse project name from command
-      const text = (ctx.message as any)?.text || '';
-      const args = text.split(' ').slice(1);
-
-      if (args.length === 0) {
-        await ctx.reply(
-          'Please provide a project name:\n/claude_new <project_name>\n\n' +
-            'Example: /claude_new my-app',
-        );
-        return;
-      }
-
-      const projectName = args[0];
-
-      // Create session
-      await ctx.reply(`Creating Claude Code session "${projectName}"...`);
-      const session = await this.claudeSessionsService.createSession(
-        user.id,
-        projectName,
-      );
-
-      await ctx.reply(
-        `✅ Session "${projectName}" created!\n\n` +
-          `Status: ${session.status}\n` +
-          `Session ID: ${session.id}\n\n` +
-          `Use /claude_talk ${projectName} to start conversing with Claude.`,
-      );
-
-      this.logger.log(
-        `Claude session ${session.id} created for user ${user.id}`,
-      );
-    } catch (error) {
-      this.logger.error(`Error in /claude_new command: ${error.message}`);
-      await ctx.reply(
-        `Failed to create session: ${error.message}\n\nPlease try again.`,
-      );
-    }
-  }
-
-  @Command('claude_list')
-  async onClaudeList(@Ctx() ctx: Context) {
-    try {
-      if (!ctx.from) {
-        await ctx.reply('Unable to identify user.');
-        return;
-      }
-
-      const telegramId = BigInt(ctx.from.id);
-      const user = await this.authService.findUserByTelegramId(telegramId);
-
-      if (!user) {
-        await ctx.reply('Please use /start to initialize your account first.');
-        return;
-      }
-
-      const sessions = await this.claudeSessionsService.listSessions(user.id);
-
-      if (sessions.length === 0) {
-        await ctx.reply(
-          'You have no Claude Code sessions.\n\nUse /claude_new <project_name> to create one.',
-        );
-        return;
-      }
-
-      let response = '🤖 Your Claude Code Sessions:\n\n';
-      for (const session of sessions) {
-        response += `📦 ${session.projectName}\n`;
-        response += `   Status: ${session.status}\n`;
-        response += `   Created: ${session.createdAt.toLocaleDateString()}\n`;
-        if (session.lastActiveAt) {
-          response += `   Last active: ${session.lastActiveAt.toLocaleString()}\n`;
-        }
-        response += '\n';
-      }
-
-      await ctx.reply(response);
-    } catch (error) {
-      this.logger.error(`Error in /claude_list command: ${error.message}`);
-      await ctx.reply('Failed to list sessions. Please try again.');
-    }
-  }
-
-  @Command('claude_talk')
-  async onClaudeTalk(@Ctx() ctx: Context) {
-    try {
-      if (!ctx.from) {
-        await ctx.reply('Unable to identify user.');
-        return;
-      }
-
-      const telegramId = BigInt(ctx.from.id);
-      const user = await this.authService.findUserByTelegramId(telegramId);
-
-      if (!user) {
-        await ctx.reply('Please use /start to initialize your account first.');
-        return;
-      }
-
-      // Parse project name from command
-      const text = (ctx.message as any)?.text || '';
-      const args = text.split(' ').slice(1);
-
-      if (args.length === 0) {
-        await ctx.reply(
-          'Please provide a project name:\n/claude_talk <project_name>\n\n' +
-            'Example: /claude_talk my-app',
-        );
-        return;
-      }
-
-      const projectName = args[0];
-
-      // Find session
-      const sessions = await this.claudeSessionsService.listSessions(user.id);
-      const session = sessions.find((s: any) => s.projectName === projectName);
-
-      if (!session) {
-        await ctx.reply(
-          `Session "${projectName}" not found.\n\nUse /claude_list to see your sessions.`,
-        );
-        return;
-      }
-
-      if (session.status !== 'ACTIVE') {
-        await ctx.reply(
-          `Session "${projectName}" is not active (status: ${session.status}).\n\n` +
-            `Please wait for it to become active or create a new session.`,
-        );
-        return;
-      }
-
-      // Store active session in telegram service (in-memory)
-      await this.telegramService.setActiveClaudeSession(
-        telegramId,
-        session.id,
-      );
-
-      await ctx.reply(
-        `💬 Now talking to Claude in "${projectName}"!\n\n` +
-          `Send any message and Claude will respond.\n\n` +
-          `To stop, use /claude_talk without arguments.`,
-      );
-    } catch (error) {
-      this.logger.error(`Error in /claude_talk command: ${error.message}`);
-      await ctx.reply('Failed to activate session. Please try again.');
-    }
-  }
-
-  @On('text')
-  async onMessage(@Ctx() ctx: Context) {
-    try {
-      if (!ctx.from || !ctx.message || !('text' in ctx.message)) {
-        return;
-      }
-
-      const text = ctx.message.text;
-
-      // Ignore commands (they're handled by other handlers)
-      if (text.startsWith('/')) {
-        return;
-      }
-
-      const telegramId = BigInt(ctx.from.id);
-      const user = await this.authService.findUserByTelegramId(telegramId);
-
-      if (!user) {
-        return; // Silently ignore messages from non-registered users
-      }
-
-      // Check if user has an active Claude session
-      const sessionId = await this.telegramService.getActiveClaudeSession(
-        telegramId,
-      );
-
-      if (!sessionId) {
-        // No active Claude session, show help
-        await ctx.reply(
-          'No active Claude session.\n\n' +
-            'Use /claude_new to create a project, or /claude_talk to activate one.',
-        );
-        return;
-      }
-
-      // Send message to Claude
-      await ctx.reply('🤔 Claude is thinking...');
-
-      const response = await this.claudeMcpProxyService.sendMessage(
-        sessionId,
-        user.id,
-        text,
-        ctx.message.message_id,
-      );
-
-      await ctx.reply(response);
-
-      this.logger.log(
-        `Message routed to Claude session ${sessionId} for user ${user.id}`,
-      );
-    } catch (error) {
-      this.logger.error(`Error handling message: ${error.message}`);
-      await ctx.reply(`Error: ${error.message}`);
-    }
-  }
-
   @Command('help')
   async onHelp(@Ctx() ctx: Context) {
     const helpText =
       `🚀 Docker Swarm Deployment Platform\n\n` +
       `Available Commands:\n\n` +
       `/start - Initialize your account\n` +
-      `/claude_new <project> - Create new AI project\n` +
-      `/claude_list - List your AI projects\n` +
-      `/claude_talk <project> - Talk to AI project\n` +
       `/api_create - Generate a new API key\n` +
       `/api_list - List your active API keys\n` +
       `/api_revoke <key_id> - Revoke an API key\n` +
@@ -465,11 +235,7 @@ export class TelegramUpdate implements OnModuleInit {
       `Getting Started:\n` +
       `1. Use /api_create to get an API key\n` +
       `2. Click the magic link to retrieve your key\n` +
-      `3. Use the API key with the REST API or MCP\n\n` +
-      `Claude Code Integration:\n` +
-      `1. Create a project: /claude_new my-app\n` +
-      `2. Activate it: /claude_talk my-app\n` +
-      `3. Chat with Claude to build your app\n\n` +
+      `3. Use the API key with the REST API\n\n` +
       `📚 API Documentation:\n` +
       `Full documentation available at:\n` +
       `http://localhost:3000/api/docs\n\n` +

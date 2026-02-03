@@ -25,10 +25,6 @@ import { AuthModule } from './modules/auth/auth.module';
 import { EnvironmentsModule } from './modules/environments/environments.module';
 import { DeploymentsModule } from './modules/deployments/deployments.module';
 import { LogsModule } from './modules/logs/logs.module';
-import { ClaudeSessionsModule } from './modules/claude-sessions/claude-sessions.module';
-
-// MCP module
-import { McpModule } from './mcp/mcp.module';
 
 // App controller and service
 import { AppController } from './app.controller';
@@ -93,10 +89,6 @@ import { AppService } from './app.service';
     EnvironmentsModule,
     DeploymentsModule,
     LogsModule,
-    ClaudeSessionsModule,
-
-    // MCP module
-    McpModule,
   ],
   controllers: [AppController],
   providers: [AppService],
