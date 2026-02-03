@@ -3,8 +3,6 @@ import { Tool } from '@rekog/mcp-nest';
 import { z } from 'zod';
 import { DeploymentsService } from '../../modules/deployments/deployments.service';
 import { ClaudeSessionsService } from '../../modules/claude-sessions/claude-sessions.service';
-import { VolumeService } from '../../integrations/docker/volume.service';
-import { ContainerService } from '../../integrations/docker/container.service';
 
 @Injectable()
 export class DeploymentTools {
@@ -13,8 +11,6 @@ export class DeploymentTools {
   constructor(
     private readonly deploymentsService: DeploymentsService,
     private readonly claudeSessionsService: ClaudeSessionsService,
-    private readonly volumeService: VolumeService,
-    private readonly containerService: ContainerService,
   ) {}
 
   @Tool({
