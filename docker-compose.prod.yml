@@ -51,7 +51,6 @@ services:
       - ./backend/.env.production
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - nginx_config:/etc/nginx/conf.d
     networks:
       - backend
     depends_on:
@@ -72,42 +71,69 @@ services:
           cpus: '2'
           memory: 2G
 
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile
+  nginx-proxy:
+    image: bbtsoftwareag/nginx-proxy-unrestricted-requestsize:alpine
     container_name: nginx_proxy
-    environment:
-      - NGINX_CONTAINER_NAME=nginx_proxy
+    labels:
+      - 'com.github.jrcs.letsencrypt_nginx_proxy_companion.nginx_proxy'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - nginx_config:/etc/nginx/conf.d
-      - certbot_www:/var/www/certbot
-      - certbot_conf:/etc/letsencrypt
+      - nginx-vhost-vol:/etc/nginx/vhost.d
+      - nginx-share-vol:/usr/share/nginx/html
+      - nginx-certs-vol:/etc/nginx/certs
+      - acme:/etc/acme.sh
+      - /var/run/docker.sock:/tmp/docker.sock:ro
     ports:
-      - "80:80"
-      - "443:443"
+      - target: 80
+        published: 80
+        mode: host
+      - target: 443
+        published: 443
+        mode: host
     networks:
       - backend
     restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          cpus: '1'
-          memory: 512M
+    # Note: Will dynamically attach to each environment's overlay network when made public
+
+  letsencrypt:
+    image: jrcs/letsencrypt-nginx-proxy-companion:2.2
+    container_name: letsencrypt_companion
+    depends_on:
+      - nginx-proxy
+    volumes:
+      - nginx-vhost-vol:/etc/nginx/vhost.d
+      - nginx-share-vol:/usr/share/nginx/html
+      - nginx-certs-vol:/etc/nginx/certs
+      - acme:/etc/acme.sh
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - DEFAULT_EMAIL=${LETSENCRYPT_EMAIL}
+    networks:
+      - backend
+    restart: unless-stopped
+
+  claude-code-builder:
+    build:
+      context: ./claude-code
+      dockerfile: Dockerfile
+    image: claude-code:latest
+    profiles:
+      - build
 
 volumes:
   postgres_data:
     driver: local
   redis_data:
     driver: local
-  nginx_config:
+  nginx-vhost-vol:
     driver: local
-  certbot_www:
+  nginx-share-vol:
     driver: local
-  certbot_conf:
+  nginx-certs-vol:
+    driver: local
+  acme:
     driver: local
 
 networks:
   backend:
     driver: bridge
+  # Per-environment overlay networks created dynamically

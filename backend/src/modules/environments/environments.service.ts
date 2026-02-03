@@ -9,7 +9,7 @@ import { PrismaService } from '../../core/database/prisma.service';
 import { NetworkService } from '../../integrations/docker/network.service';
 import { ContainerService } from '../../integrations/docker/container.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
-import { EnvironmentStatus } from '@prisma/client';
+import { EnvironmentStatus, DeploymentStatus, ContainerStatus } from '@prisma/client';
 
 @Injectable()
 export class EnvironmentsService {
@@ -193,20 +193,8 @@ export class EnvironmentsService {
         }
       }
 
-      // Detach nginx if environment is public
-      if (environment.isPublic) {
-        try {
-          const nginxContainerName = process.env.NGINX_CONTAINER_NAME || 'nginx_proxy';
-          await this.networkService.detachContainerFromNetwork(
-            nginxContainerName,
-            environment.overlayNetworkId,
-          );
-        } catch (error) {
-          this.logger.warn(
-            `Failed to detach nginx from network: ${error.message}`,
-          );
-        }
-      }
+      // nginx-proxy will automatically detach when network is deleted
+      // No manual detachment needed
 
       // Delete overlay network
       if (environment.overlayNetworkId) {
@@ -280,33 +268,77 @@ export class EnvironmentsService {
       throw new ConflictException('Domain is already in use');
     }
 
-    // Attach nginx to overlay network
     try {
+      // Attach nginx-proxy to this environment's overlay network for isolation
       const nginxContainerName = process.env.NGINX_CONTAINER_NAME || 'nginx_proxy';
       await this.networkService.attachContainerToNetwork(
         nginxContainerName,
         environment.overlayNetworkId,
       );
 
-      // Update environment
+      // Update database
       const updated = await this.prisma.environment.update({
         where: { id: environmentId },
-        data: {
-          isPublic: true,
-          publicDomain: domain,
-        },
+        data: { isPublic: true, publicDomain: domain },
       });
 
-      this.logger.log(
-        `Environment ${environmentId} is now public at ${domain}`,
-      );
+      // Update existing services to add VIRTUAL_HOST env vars
+      // nginx-proxy will auto-detect them via docker socket
+      await this.updateDeploymentsForPublicAccess(environmentId, domain);
 
+      this.logger.log(`Environment ${environmentId} is now public at ${domain}`);
       return updated;
     } catch (error) {
-      this.logger.error(
-        `Failed to make environment public: ${error.message}`,
-      );
+      this.logger.error(`Failed to make environment public: ${error.message}`);
       throw error;
+    }
+  }
+
+  private async updateDeploymentsForPublicAccess(environmentId: string, domain: string): Promise<void> {
+    const deployments = await this.prisma.deployment.findMany({
+      where: { environmentId, status: DeploymentStatus.RUNNING },
+      include: { containers: true },
+    });
+
+    // Update running services to add proxy env vars
+    // nginx-proxy watches docker socket and will auto-configure
+    for (const deployment of deployments) {
+      for (const container of deployment.containers) {
+        if (container.name && container.status === ContainerStatus.RUNNING) {
+          await this.addProxyEnvVarsToService(container.name, domain);
+        }
+      }
+    }
+  }
+
+  private async addProxyEnvVarsToService(serviceName: string, domain: string): Promise<void> {
+    const service = await this.containerService.getService(serviceName);
+    const inspection = await service.inspect();
+
+    const currentEnv = inspection.Spec.TaskTemplate.ContainerSpec.Env || [];
+    const proxyEnvVars = [
+      `VIRTUAL_HOST=${domain}`,
+      `LETSENCRYPT_HOST=${domain}`,
+      `LETSENCRYPT_EMAIL=${process.env.LETSENCRYPT_EMAIL || 'your-email@example.com'}`,
+    ];
+
+    // Add proxy env vars if not already present
+    const envVarsToAdd = proxyEnvVars.filter(
+      envVar => !currentEnv.some(existing => existing.startsWith(envVar.split('=')[0] + '='))
+    );
+
+    if (envVarsToAdd.length > 0) {
+      await service.update({
+        version: parseInt(inspection.Version.Index),
+        TaskTemplate: {
+          ...inspection.Spec.TaskTemplate,
+          ContainerSpec: {
+            ...inspection.Spec.TaskTemplate.ContainerSpec,
+            Env: [...currentEnv, ...envVarsToAdd],
+          },
+        },
+      });
+      this.logger.log(`Added proxy env vars to service ${serviceName}`);
     }
   }
 }

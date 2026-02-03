@@ -194,6 +194,20 @@ export class DeploymentsService {
 
       const envVars = deployment.envVars as any as Record<string, string>;
 
+      // Check if environment is public and inject proxy env vars
+      // nginx-proxy will auto-detect these via docker socket
+      if (deployment.environment.isPublic && deployment.environment.publicDomain) {
+        const proxyEnvVars = this.getProxyEnvironmentVariables(
+          deployment.environment.publicDomain,
+          serviceName,
+          ports,
+        );
+        Object.assign(envVars || {}, proxyEnvVars);
+      }
+
+      // Services stay on their environment's overlay network only
+      // nginx-proxy attaches to the environment network for isolation
+
       await this.containerService.createService({
         name: serviceName,
         image: deployment.image,
@@ -486,13 +500,27 @@ export class DeploymentsService {
         }
       }
 
+      // Prepare environment variables
+      const envVars = deployment.envVars as Record<string, string> || {};
+
+      // Check if environment is public and inject proxy env vars
+      // nginx-proxy will auto-detect these via docker socket
+      if (deployment.environment.isPublic && deployment.environment.publicDomain) {
+        const proxyEnvVars = this.getProxyEnvironmentVariables(
+          deployment.environment.publicDomain,
+          serviceName,
+          deployment.ports as any[],
+        );
+        Object.assign(envVars, proxyEnvVars);
+      }
+
       // Create service
       await this.containerService.createService({
         name: serviceName,
         image: deployment.image,
         tag: deployment.tag || 'latest',
         replicas: deployment.replicas,
-        env: deployment.envVars as Record<string, string>,
+        env: envVars,
         ports: deployment.ports as any[],
         volumes: volumes,
         networks: [networkName],
@@ -538,5 +566,23 @@ export class DeploymentsService {
         },
       });
     }
+  }
+
+  private getProxyEnvironmentVariables(
+    domain: string,
+    serviceName: string,
+    ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>,
+  ): Record<string, string> {
+    const proxyEnvVars: Record<string, string> = {
+      VIRTUAL_HOST: domain,
+      LETSENCRYPT_HOST: domain,
+      LETSENCRYPT_EMAIL: process.env.LETSENCRYPT_EMAIL || 'your-email@example.com',
+    };
+
+    if (ports && ports.length > 0) {
+      proxyEnvVars.VIRTUAL_PORT = ports[0].container.toString();
+    }
+
+    return proxyEnvVars;
   }
 }

@@ -19,13 +19,13 @@ import { HealthModule } from './core/health/health.module';
 // Integration modules
 import { DockerModule } from './integrations/docker/docker.module';
 import { TelegramModule } from './integrations/telegram/telegram.module';
-import { NginxModule } from './integrations/nginx/nginx.module';
 
 // Feature modules
 import { AuthModule } from './modules/auth/auth.module';
 import { EnvironmentsModule } from './modules/environments/environments.module';
 import { DeploymentsModule } from './modules/deployments/deployments.module';
 import { LogsModule } from './modules/logs/logs.module';
+import { ClaudeSessionsModule } from './modules/claude-sessions/claude-sessions.module';
 
 // MCP module
 import { McpModule } from './mcp/mcp.module';
@@ -87,13 +87,13 @@ import { AppService } from './app.service';
     // Integration modules
     DockerModule,
     TelegramModule,
-    NginxModule,
 
     // Feature modules
     AuthModule,
     EnvironmentsModule,
     DeploymentsModule,
     LogsModule,
+    ClaudeSessionsModule,
 
     // MCP module
     McpModule,

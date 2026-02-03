@@ -20,6 +20,7 @@ model User {
   apiKeys         ApiKey[]
   environments    Environment[]
   magicLinks      MagicLink[]
+  claudeSessions  ClaudeSession[]
 
   @@map("users")
 }
@@ -74,6 +75,7 @@ model Environment {
 
   user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
   deployments       Deployment[]
+  claudeSessions    ClaudeSession[]
 
   @@unique([userId, name])
   @@index([userId])
@@ -162,4 +164,78 @@ model MagicLink {
   @@index([userId])
   @@index([token])
   @@map("magic_links")
+}
+
+enum ClaudeSessionStatus {
+  CREATING
+  STARTING
+  ACTIVE
+  IDLE
+  STOPPING
+  STOPPED
+  DELETING
+  DELETED
+  ERROR
+}
+
+model ClaudeSession {
+  id                String              @id @default(cuid())
+  userId            String              @map("user_id")
+  projectName       String              @map("project_name")
+  containerId       String?             @unique @map("container_id")
+  containerName     String              @unique @map("container_name")
+  workspaceVolume   String              @map("workspace_volume")
+  status            ClaudeSessionStatus @default(CREATING)
+  environmentId     String?             @map("environment_id")
+  cpuLimit          Float?              @map("cpu_limit")
+  memoryLimit       BigInt?             @map("memory_limit")
+  allowDockerAccess Boolean             @default(true) @map("allow_docker_access")
+  anthropicApiKey   String?             @map("anthropic_api_key")
+  lastActiveAt      DateTime?           @map("last_active_at")
+  errorMessage      String?             @map("error_message")
+  createdAt         DateTime            @default(now()) @map("created_at")
+  updatedAt         DateTime            @updatedAt @map("updated_at")
+
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  environment       Environment?        @relation(fields: [environmentId], references: [id], onDelete: SetNull)
+  conversations     ClaudeConversation[]
+  deployments       ClaudeDeployment[]
+
+  @@unique([userId, projectName])
+  @@index([userId])
+  @@index([status])
+  @@map("claude_sessions")
+}
+
+model ClaudeConversation {
+  id              String         @id @default(cuid())
+  sessionId       String         @map("session_id")
+  messageId       String         @unique @map("message_id")
+  role            String
+  content         String         @db.Text
+  telegramMsgId   BigInt?        @map("telegram_msg_id")
+  metadata        Json?
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  session         ClaudeSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("claude_conversations")
+}
+
+model ClaudeDeployment {
+  id              String         @id @default(cuid())
+  sessionId       String         @map("session_id")
+  deploymentType  String         @map("deployment_type")
+  deploymentId    String?        @map("deployment_id")
+  dockerId        String?        @map("docker_id")
+  name            String
+  configuration   Json
+  status          String         @default("active")
+  createdAt       DateTime       @default(now()) @map("created_at")
+
+  session         ClaudeSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([sessionId])
+  @@map("claude_deployments")
 }
