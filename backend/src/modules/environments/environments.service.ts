@@ -9,7 +9,7 @@ import { PrismaService } from '../../core/database/prisma.service';
 import { NetworkService } from '../../integrations/docker/network.service';
 import { ContainerService } from '../../integrations/docker/container.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
-import { EnvironmentStatus, DeploymentStatus, ContainerStatus } from '@prisma/client';
+import { EnvironmentStatus, DeploymentStatus, ServiceStatus } from '@prisma/client';
 
 @Injectable()
 export class EnvironmentsService {
@@ -163,20 +163,18 @@ export class EnvironmentsService {
       // Get all deployments for this environment
       const deployments = await this.prisma.deployment.findMany({
         where: { environmentId },
-        include: { containers: true },
+        include: { service: true },
       });
 
       // Remove all services
       for (const deployment of deployments) {
-        for (const container of deployment.containers) {
-          if (container.name) {
-            try {
-              await this.containerService.removeService(container.name);
-            } catch (error) {
-              this.logger.warn(
-                `Failed to remove service ${container.name}: ${error.message}`,
-              );
-            }
+        if (deployment.service?.name) {
+          try {
+            await this.containerService.removeService(deployment.service.name);
+          } catch (error) {
+            this.logger.warn(
+              `Failed to remove service ${deployment.service.name}: ${error.message}`,
+            );
           }
         }
       }
@@ -297,16 +295,14 @@ export class EnvironmentsService {
   private async updateDeploymentsForPublicAccess(environmentId: string, domain: string): Promise<void> {
     const deployments = await this.prisma.deployment.findMany({
       where: { environmentId, status: DeploymentStatus.RUNNING },
-      include: { containers: true },
+      include: { service: true },
     });
 
     // Update running services to add proxy env vars
     // nginx-proxy watches docker socket and will auto-configure
     for (const deployment of deployments) {
-      for (const container of deployment.containers) {
-        if (container.name && container.status === ContainerStatus.RUNNING) {
-          await this.addProxyEnvVarsToService(container.name, domain);
-        }
+      if (deployment.service?.name && deployment.service.status === ServiceStatus.RUNNING) {
+        await this.addProxyEnvVarsToService(deployment.service.name, domain);
       }
     }
   }

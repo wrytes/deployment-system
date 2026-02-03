@@ -7,7 +7,7 @@ import {
 import { PrismaService } from '../../core/database/prisma.service';
 import { ContainerService } from '../../integrations/docker/container.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
-import { DeploymentStatus, ContainerStatus, EnvironmentStatus } from '@prisma/client';
+import { DeploymentStatus, ServiceStatus, EnvironmentStatus } from '@prisma/client';
 import { nanoid } from 'nanoid';
 
 export interface CreateDeploymentDto {
@@ -223,12 +223,12 @@ export class DeploymentsService {
         },
       });
 
-      // Create container record
-      await this.prisma.container.create({
+      // Create service record
+      await this.prisma.service.create({
         data: {
           deploymentId: deployment.id,
           name: serviceName,
-          status: ContainerStatus.RUNNING,
+          status: ServiceStatus.RUNNING,
         },
       });
 
@@ -267,7 +267,7 @@ export class DeploymentsService {
         environment: { userId },
       },
       include: {
-        containers: true,
+        service: true,
         environment: {
           select: {
             id: true,
@@ -302,10 +302,7 @@ export class DeploymentsService {
     return this.prisma.deployment.findMany({
       where: { environmentId },
       include: {
-        containers: true,
-        _count: {
-          select: { containers: true },
-        },
+        service: true,
       },
       orderBy: {
         createdAt: 'desc',
@@ -323,27 +320,24 @@ export class DeploymentsService {
         id: deploymentId,
         environment: { userId },
       },
-      include: { containers: true },
+      include: { service: true },
     });
 
     if (!deployment) {
       throw new NotFoundException('Deployment not found');
     }
 
-    if (deployment.containers.length === 0) {
-      return 'No containers found for this deployment';
+    if (!deployment.service) {
+      return 'No service found for this deployment';
     }
 
-    // Get logs from the first container (service)
-    const container = deployment.containers[0];
-
-    if (!container.name) {
-      return 'Container name not available';
+    if (!deployment.service.name) {
+      return 'Service name not available';
     }
 
     try {
       return await this.containerService.getServiceLogs(
-        container.name,
+        deployment.service.name,
         tail,
       );
     } catch (error) {
@@ -531,12 +525,12 @@ export class DeploymentsService {
         },
       });
 
-      // Create container record
-      await this.prisma.container.create({
+      // Create service record
+      await this.prisma.service.create({
         data: {
           deploymentId: deployment.id,
           name: serviceName,
-          status: ContainerStatus.RUNNING,
+          status: ServiceStatus.RUNNING,
         },
       });
 

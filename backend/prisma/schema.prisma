@@ -108,7 +108,7 @@ model Deployment {
   createdAt       DateTime          @default(now()) @map("created_at")
 
   environment     Environment       @relation(fields: [environmentId], references: [id], onDelete: Cascade)
-  containers      Container[]
+  service         Service?
 
   @@index([environmentId])
   @@index([jobId])
@@ -116,7 +116,7 @@ model Deployment {
   @@map("deployments")
 }
 
-enum ContainerStatus {
+enum ServiceStatus {
   CREATING
   RUNNING
   STOPPED
@@ -130,22 +130,21 @@ enum HealthStatus {
   NONE
 }
 
-model Container {
-  id            String          @id @default(cuid())
-  deploymentId  String          @map("deployment_id")
-  dockerId      String?         @unique @map("docker_id")     // Docker's container/task ID
-  name          String                                        // Service name in swarm
-  status        ContainerStatus @default(CREATING)
-  healthStatus  HealthStatus    @default(NONE) @map("health_status")
-  restartCount  Int             @default(0) @map("restart_count")
-  createdAt     DateTime        @default(now()) @map("created_at")
-  updatedAt     DateTime        @updatedAt @map("updated_at")
+model Service {
+  id            String        @id @default(cuid())
+  deploymentId  String        @unique @map("deployment_id")
+  dockerId      String?       @unique @map("docker_id")     // Docker's service ID
+  name          String                                      // Service name in swarm
+  status        ServiceStatus @default(CREATING)
+  healthStatus  HealthStatus  @default(NONE) @map("health_status")
+  restartCount  Int           @default(0) @map("restart_count")
+  createdAt     DateTime      @default(now()) @map("created_at")
+  updatedAt     DateTime      @updatedAt @map("updated_at")
 
-  deployment    Deployment      @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+  deployment    Deployment    @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
 
-  @@index([deploymentId])
   @@index([dockerId])
-  @@map("containers")
+  @@map("services")
 }
 
 model MagicLink {

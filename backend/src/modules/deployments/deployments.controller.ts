@@ -316,13 +316,11 @@ export class DeploymentsController {
             isPublic: true,
             publicDomain: 'my-app.example.com',
           },
-          containers: [
-            {
-              name: 'my-app-prod_nginx_1738579200',
-              status: 'RUNNING',
-              healthStatus: 'HEALTHY',
-            },
-          ],
+          service: {
+            name: 'my-app-prod_nginx_1738579200',
+            status: 'RUNNING',
+            healthStatus: 'HEALTHY',
+          },
           startedAt: '2026-02-03T12:00:00.000Z',
           completedAt: '2026-02-03T12:02:30.000Z',
         },
@@ -379,12 +377,10 @@ export class DeploymentsController {
             status: 'RUNNING',
             replicas: 1,
             createdAt: '2026-02-03T12:00:00.000Z',
-            containers: [
-              {
-                name: 'my-app-prod_nginx_1738579200',
-                status: 'RUNNING',
-              },
-            ],
+            service: {
+              name: 'my-app-prod_nginx_1738579200',
+              status: 'RUNNING',
+            },
           },
         ],
       },
@@ -418,7 +414,7 @@ export class DeploymentsController {
   @ApiOperation({
     summary: 'Get deployment logs',
     description:
-      'Retrieve container logs from a deployment. Returns logs from the first container (Swarm service). ' +
+      'Retrieve service logs from a deployment. Returns logs from the deployment service. ' +
       '\n\n**Required scope**: `LOGS_READ`',
   })
   @ApiParam({
@@ -435,7 +431,7 @@ export class DeploymentsController {
   })
   @ApiResponse({
     status: 200,
-    description: 'Container logs',
+    description: 'Service logs',
     schema: {
       example: {
         logs:
