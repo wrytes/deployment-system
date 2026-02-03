@@ -3,11 +3,9 @@
 ## ✅ System is Running
 
 All services are up and running:
-- PostgreSQL (database)
-- Redis (cache)
+- PostgreSQL (database) on port 5432
+- Redis (cache) on port 6379
 - Backend API (http://localhost:3000)
-- nginx-proxy (ports 80, 443)
-- Let's Encrypt companion
 
 ## 🔑 Get an API Key
 
@@ -31,20 +29,16 @@ curl http://localhost:3000/health | jq .
 # Test root endpoint (no auth required)
 curl http://localhost:3000/ | jq .
 
-# Create an environment (requires auth)
-curl -X POST http://localhost:3000/environments \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "test-env"}'
-
-# List environments
-curl http://localhost:3000/environments \
+# List your API keys (requires auth)
+curl http://localhost:3000/auth/keys \
   -H "X-API-Key: $API_KEY" | jq .
 ```
 
 ## 📚 API Documentation
 
 Visit: http://localhost:3000/api/docs
+
+Interactive Swagger UI for testing all endpoints.
 
 ## 🧪 Test Core Functionality
 
@@ -59,7 +53,14 @@ curl -X POST http://localhost:3000/environments \
 
 Save the `id` from the response.
 
-### 2. Deploy a Container
+### 2. List Environments
+
+```bash
+curl http://localhost:3000/environments \
+  -H "X-API-Key: $API_KEY" | jq .
+```
+
+### 3. Deploy a Container
 
 ```bash
 # Replace {environmentId} with your environment ID
@@ -71,142 +72,264 @@ curl -X POST http://localhost:3000/deployments \
     "image": "nginx",
     "tag": "alpine",
     "replicas": 1,
-    "ports": [{"container": 80}]
+    "ports": [{"container": 80, "host": 8080}],
+    "envVars": {"NGINX_PORT": "80"}
   }' | jq .
 ```
 
 Save the `jobId` to check deployment status.
 
-### 3. Check Deployment Status
+### 4. Check Deployment Status
 
 ```bash
-curl "http://localhost:3000/deployments/{jobId}/status" \
+# Replace {jobId} with your job ID
+curl "http://localhost:3000/deployments/job/{jobId}" \
   -H "X-API-Key: $API_KEY" | jq .
 ```
 
-### 4. Get Deployment Logs
+Watch the status change from:
+- `PENDING` → `PULLING_IMAGE` → `CREATING_VOLUMES` → `STARTING_CONTAINERS` → `RUNNING`
+
+### 5. List Deployments in Environment
 
 ```bash
-curl "http://localhost:3000/deployments/{deploymentId}/logs" \
+# Replace {environmentId} with your environment ID
+curl "http://localhost:3000/deployments/environment/{environmentId}" \
   -H "X-API-Key: $API_KEY" | jq .
 ```
 
-## 🤖 Test Claude Code Integration (Optional)
-
-### Via Telegram
-
-1. **Create a Claude Session**
-   ```
-   /claude_new my-project
-   ```
-
-2. **List Your Sessions**
-   ```
-   /claude_list
-   ```
-
-3. **Activate a Session**
-   ```
-   /claude_talk my-project
-   ```
-
-4. **Talk to Claude**
-   - Just send any message and Claude will respond
-   - Claude can help you build applications in the isolated workspace
-
-### Via REST API
+### 6. Get Deployment Logs
 
 ```bash
-# Create Claude session
-curl -X POST http://localhost:3000/claude-sessions \
+# Replace {deploymentId} with your deployment ID
+curl "http://localhost:3000/deployments/{deploymentId}/logs?tail=50" \
+  -H "X-API-Key: $API_KEY" | jq .
+```
+
+### 7. Test Deployed Service
+
+```bash
+# Nginx was deployed with host port 8080
+curl http://localhost:8080
+```
+
+You should see the nginx welcome page.
+
+### 8. Delete Environment
+
+```bash
+# Replace {environmentId} with your environment ID
+curl -X DELETE "http://localhost:3000/environments/{environmentId}" \
+  -H "X-API-Key: $API_KEY" | jq .
+```
+
+This will:
+- Stop all deployments
+- Remove all containers
+- Delete all volumes
+- Remove the overlay network
+
+## 🚀 Deploy from Git Repository
+
+### Deploy a Node.js App
+
+```bash
+curl -X POST http://localhost:3000/deployments/from-git \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"projectName": "test-project"}' | jq .
-
-# List sessions
-curl http://localhost:3000/claude-sessions \
-  -H "X-API-Key: $API_KEY" | jq .
-
-# Get session details
-curl http://localhost:3000/claude-sessions/{sessionId} \
-  -H "X-API-Key: $API_KEY" | jq .
+  -d '{
+    "environmentId": "{environmentId}",
+    "gitUrl": "https://github.com/your-username/your-app.git",
+    "branch": "main",
+    "baseImage": "node:18-alpine",
+    "installCommand": "npm install",
+    "buildCommand": "npm run build",
+    "startCommand": "npm start",
+    "replicas": 1,
+    "ports": [{"container": 3000, "host": 3001}],
+    "envVars": {
+      "NODE_ENV": "production",
+      "PORT": "3000"
+    }
+  }' | jq .
 ```
 
-## 🔍 Verify Docker Swarm Services
+## 🌐 Make Environment Public (Production Only)
+
+**Note**: This feature requires a public domain and DNS configuration. It will not work in local testing without a proper domain.
 
 ```bash
-# List all Docker services
-docker service ls
-
-# Check specific service
-docker service ps {service_name}
-
-# View service logs
-docker service logs {service_name}
+# This will fail in local development without a valid domain
+curl -X POST "http://localhost:3000/environments/{environmentId}/public" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"domain": "my-app.example.com"}' | jq .
 ```
 
-## 🐛 Troubleshooting
+In production with nginx-proxy:
+1. Point `my-app.example.com` DNS to your server
+2. Make environment public with the API call above
+3. nginx-proxy will automatically:
+   - Generate nginx configuration
+   - Request SSL certificate from Let's Encrypt
+   - Configure HTTPS redirect
+   - Proxy requests to your service
 
-### Check Container Status
-```bash
-docker-compose -f docker-compose.prod.yml ps
-```
+## 📊 Check System Health
 
-### View Logs
-```bash
-# Backend logs
-docker logs deployment_platform_backend
-
-# All services
-docker-compose -f docker-compose.prod.yml logs -f
-```
-
-### Restart Services
-```bash
-# Restart all
-docker-compose -f docker-compose.prod.yml restart
-
-# Restart specific service
-docker-compose -f docker-compose.prod.yml restart backend
-```
-
-### Reset Everything
-```bash
-# Stop and remove all containers and volumes
-docker-compose -f docker-compose.prod.yml down -v
-
-# Start fresh
-docker-compose -f docker-compose.prod.yml up -d
-
-# Apply migrations
-docker-compose -f docker-compose.prod.yml exec backend npx prisma migrate deploy
-```
-
-## ⚠️ Local Testing Limitations
-
-1. **nginx-proxy SSL**: Cannot test HTTPS/SSL locally without a real domain
-   - nginx-proxy works but won't get real SSL certificates
-   - Use staging mode (LETSENCRYPT_STAGING=true) to avoid rate limits
-
-2. **Making Environments Public**: Requires a real domain name
-   - Can test the API endpoint but SSL won't work
-   - Deploy to a server with a domain for full testing
-
-3. **Network Isolation**: Works fully in Docker Swarm
-   - Each environment gets its own overlay network
-   - Test deployments are isolated from each other
-
-## 📊 System Status
-
-Check all services are healthy:
 ```bash
 curl http://localhost:3000/health | jq .
-docker-compose -f docker-compose.prod.yml ps
 ```
 
-## 🎯 Next Steps
+Returns status of:
+- Database connection
+- Memory usage
+- Disk usage
 
-1. ✅ Test API endpoints with your API key
-2. ✅ Deploy a test application
-3. ✅ Try Claude Code integration via Telegram
-4. 🚀 Deploy to production server with real domain for full functionality
+## 🐛 Debugging
+
+### View Backend Logs
+
+Backend is running with `yarn start:dev` - check the terminal where it's running.
+
+### View Docker Services
+
+```bash
+# List all services
+docker service ls
+
+# Inspect a service
+docker service inspect {service-name}
+
+# View service logs
+docker service logs {service-name}
+```
+
+### View Docker Networks
+
+```bash
+# List networks
+docker network ls | grep overlay_env
+
+# Inspect a network
+docker network inspect {network-name}
+```
+
+### View Docker Volumes
+
+```bash
+# List volumes
+docker volume ls | grep vol_
+
+# Inspect a volume
+docker volume inspect {volume-name}
+```
+
+### Check Database
+
+```bash
+# Connect to PostgreSQL
+docker exec -it deployment_platform_postgres psql -U postgres -d deployment_platform
+
+# List tables
+\dt
+
+# Query users
+SELECT * FROM users;
+
+# Query environments
+SELECT * FROM environments;
+
+# Exit
+\q
+```
+
+### Check Redis
+
+```bash
+# Connect to Redis
+docker exec -it deployment_platform_redis redis-cli
+
+# Check keys
+KEYS *
+
+# Exit
+exit
+```
+
+## 🧹 Clean Up
+
+### Stop Backend
+
+Press `Ctrl+C` in the terminal running `yarn start:dev`.
+
+### Stop Infrastructure
+
+```bash
+cd backend
+docker compose down -v
+```
+
+This will:
+- Stop PostgreSQL and Redis containers
+- Remove containers
+- Delete volumes (all data will be lost)
+
+## ⚠️ Known Issues
+
+### Health Check Shows Storage Down
+
+If disk usage is high, the health check will report storage as down. This is expected behavior if your disk is above 90% full.
+
+### Port Already in Use
+
+If you see "port already in use" errors:
+
+```bash
+# Check what's using the port
+lsof -i :3000
+lsof -i :5432
+lsof -i :6379
+
+# Stop conflicting services or change ports in .env
+```
+
+### Telegram Bot Not Responding
+
+1. Check that `TELEGRAM_BOT_TOKEN` is set correctly in `backend/.env`
+2. Check backend logs for telegram errors
+3. Verify bot token is valid: https://t.me/BotFather
+
+### Docker Socket Permission Denied
+
+The backend needs access to Docker socket. If you see permission errors:
+
+```bash
+# Check Docker socket permissions
+ls -la /var/run/docker.sock
+
+# On Mac, Docker Desktop handles this automatically
+# On Linux, add your user to the docker group:
+sudo usermod -aG docker $USER
+# Then log out and back in
+```
+
+## 📝 Next Steps
+
+1. **Test all endpoints** using the Swagger UI at http://localhost:3000/api/docs
+2. **Deploy a real application** from a Git repository
+3. **Test rate limiting** by making multiple deployment requests
+4. **Test error handling** by providing invalid inputs
+5. **Monitor logs** to understand the deployment workflow
+
+## 🎯 Production Testing
+
+For production deployment with nginx-proxy and HTTPS:
+
+1. Deploy to a server with a public IP
+2. Configure DNS for your domain
+3. Set `LETSENCRYPT_EMAIL` in `.env.production`
+4. Use `docker-compose.prod.yml` for deployment
+5. Test HTTPS access with your domain
+
+See `QUICK_START.md` for production deployment instructions.

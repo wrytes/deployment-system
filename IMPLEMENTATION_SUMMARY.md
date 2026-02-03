@@ -2,7 +2,7 @@
 
 ## Overview
 
-A complete, production-ready Docker Swarm deployment platform has been implemented following the comprehensive plan. All 12 implementation phases have been completed successfully, resulting in a fully functional system with 70 files and over 16,000 lines of code.
+A production-ready Docker Swarm deployment platform with NestJS backend, automatic HTTPS via nginx-proxy, and Telegram bot for API key management. The system provides REST API for programmatic container deployments with network isolation and SSL automation.
 
 ## What Was Built
 
@@ -30,7 +30,7 @@ A complete, production-ready Docker Swarm deployment platform has been implement
 
 **Network Isolation**:
 - Per-environment overlay networks with unique IDs
-- Dynamic nginx attachment/detachment
+- Dynamic nginx-proxy attachment to environment networks
 - Automatic network cleanup on environment deletion
 
 **Container Management**:
@@ -60,6 +60,7 @@ A complete, production-ready Docker Swarm deployment platform has been implement
 - Job ID-based status polling
 - Detailed error reporting
 - Container health tracking
+- Git repository deployment support
 
 ### 4. Telegram Bot
 
@@ -74,6 +75,7 @@ A complete, production-ready Docker Swarm deployment platform has been implement
 - Automatic user creation from Telegram ID
 - Magic link generation with expiry
 - Webhook support for production
+- Polling mode for development
 
 ### 5. REST API
 
@@ -90,7 +92,8 @@ A complete, production-ready Docker Swarm deployment platform has been implement
 - `POST /environments/:id/public` - Enable public HTTPS access
 
 **Deployments** (`/deployments`):
-- `POST /deployments` - Create deployment (rate limited: 5/min)
+- `POST /deployments` - Deploy from Docker Hub (rate limited: 5/min)
+- `POST /deployments/from-git` - Deploy from Git repository
 - `GET /deployments/job/:jobId` - Poll deployment status
 - `GET /deployments/environment/:envId` - List deployments
 - `GET /deployments/:id/logs?tail=100` - Get container logs
@@ -98,53 +101,38 @@ A complete, production-ready Docker Swarm deployment platform has been implement
 **Health** (`/health`):
 - `GET /health` - System health check (database, memory, disk)
 
-### 6. MCP Server
+**Documentation**:
+- Swagger/OpenAPI at `/api/docs`
+- Interactive API testing
 
-**Tools** (`/mcp/tools/*`):
-- `create_environment` - Create isolated environment
-- `list_environments` - List all environments
-- `create_deployment` - Deploy container to environment
-- `get_deployment_status` - Check deployment progress
-- `make_environment_public` - Enable HTTPS with SSL
+### 6. nginx-proxy Integration
 
-**Features**:
-- REST-based MCP implementation
-- Structured request/response format
-- Same authentication as REST API
-
-### 7. Nginx Reverse Proxy
+**Automatic HTTPS**:
+- Uses `jwilder/nginx-proxy` for automatic reverse proxy configuration
+- Let's Encrypt companion for SSL certificate automation
+- Containers configured with `VIRTUAL_HOST`, `LETSENCRYPT_HOST` environment variables
+- nginx-proxy watches Docker socket and auto-configures
 
 **Features**:
-- Alpine-based Docker image with nginx, certbot, docker-cli
-- Dynamic network attachment (30-second polling loop)
-- SSL certificate automation with Let's Encrypt
+- Automatic SSL certificate generation and renewal
 - HTTP → HTTPS redirection
-- Security headers (HSTS, X-Frame-Options, etc.)
+- Dynamic configuration based on container labels
+- Per-environment network isolation
+- No manual nginx configuration required
 
-**Scripts**:
-- `entrypoint.sh` - Start nginx and network monitor
-- `attach-networks.sh` - Discover and attach to public networks
-- `request-cert.sh` - Request SSL certificate
-
-**Configuration**:
-- Dynamic nginx config generation per domain
-- Service proxy with proper headers
-- Timeouts and WebSocket support
-
-### 8. Production Deployment
+### 7. Production Deployment
 
 **Docker Compose**:
 - PostgreSQL with health checks and resource limits
 - Redis with authentication
-- Backend with Docker socket mount
-- Nginx with SSL volume mounts
+- Backend with Docker socket mount (root user for socket access)
+- nginx-proxy with SSL volume mounts
+- Let's Encrypt companion service
 
-**Deployment Script** (`deploy.sh`):
-- Docker and Swarm validation
-- Automatic Swarm initialization
-- Service build and startup
-- Database migration execution
-- Comprehensive status reporting
+**Configuration**:
+- Environment-based configuration
+- Secure defaults
+- Resource limits on all services
 
 ## File Structure
 
@@ -155,9 +143,8 @@ deployment-system/
 │   │   ├── common/           # Guards, decorators, filters
 │   │   ├── config/           # Configuration with Joi validation
 │   │   ├── core/             # Database, health checks
-│   │   ├── integrations/     # Docker, Telegram, Nginx
+│   │   ├── integrations/     # Docker, Telegram
 │   │   ├── modules/          # Auth, Environments, Deployments
-│   │   ├── mcp/              # MCP server controller
 │   │   ├── app.module.ts     # Application wiring
 │   │   └── main.ts           # Bootstrap
 │   ├── prisma/
@@ -165,13 +152,7 @@ deployment-system/
 │   │   └── migrations/       # Migration history
 │   ├── Dockerfile            # Multi-stage production build
 │   └── docker-compose.yml    # Local development
-├── nginx/
-│   ├── Dockerfile            # Nginx with SSL automation
-│   ├── nginx.conf            # Main nginx configuration
-│   ├── scripts/              # Automation scripts
-│   └── templates/            # Config templates
 ├── docker-compose.prod.yml   # Production deployment
-├── deploy.sh                 # Deployment automation
 └── README.md                 # User documentation
 ```
 
@@ -198,7 +179,7 @@ deployment-system/
 
 4. **Start backend**:
    ```bash
-   npm run start:dev
+   yarn start:dev
    ```
 
 5. **Test health check**:
@@ -210,13 +191,14 @@ deployment-system/
 
 1. **Configure environment**:
    ```bash
-   cp .env.production.example backend/.env.production
+   cp .env.production.example .env.production
+   cp backend/.env.example backend/.env.production
    # Edit with production settings
    ```
 
-2. **Run deployment**:
+2. **Start services**:
    ```bash
-   ./deploy.sh
+   docker compose -f docker-compose.prod.yml up -d
    ```
 
 3. **Verify services**:
@@ -314,61 +296,65 @@ curl -X POST http://localhost:3000/environments/clx123.../public \
 2. **Authorization**: Scope-based permissions
 3. **Network Isolation**: Per-environment overlay networks
 4. **Container Security**: Dropped capabilities, read-only filesystem
-5. **SSL/TLS**: Automatic Let's Encrypt certificates
+5. **SSL/TLS**: Automatic Let's Encrypt certificates via nginx-proxy
 6. **Rate Limiting**: 5 deployments per minute per user
 7. **Input Validation**: Joi schema validation on all inputs
-8. **Non-root Execution**: Containers run as non-root users
+8. **Non-root Execution**: Containers run as non-root users where possible
 
-## Known Limitations (MVP)
+## Known Limitations
 
 1. **Single Machine**: Swarm limited to one node
-2. **No User Namespaces**: Requires kernel support (planned for v1.5)
-3. **Manual SSL**: First certificate request may need manual intervention
-4. **No Metrics**: Prometheus/Grafana integration planned for v1.5
-5. **Basic RBAC**: No team/organization support yet
+2. **Local Testing**: nginx-proxy HTTPS features require public domain
+3. **Basic RBAC**: No team/organization support yet
+4. **No Metrics**: Prometheus/Grafana integration not included
 
-## Next Steps
+## Architecture Decisions
 
-1. **Test the implementation**:
-   - Set up Telegram bot
-   - Create test environment
-   - Deploy sample application
-   - Test public endpoint with SSL
+### Why nginx-proxy Instead of Custom nginx?
 
-2. **Production hardening**:
-   - Review security settings
-   - Configure backup strategy
-   - Set up monitoring
-   - Document runbooks
+**Before**: Custom nginx container with manual configuration management
+- Required database service for config storage
+- Complex config generation and reloading
+- Manual SSL certificate management scripts
+- High maintenance overhead
 
-3. **Feature additions** (v1.5+):
-   - User namespaces for additional isolation
-   - Multi-machine Swarm support
-   - Private Docker registry
-   - Advanced RBAC with teams
-   - Metrics and monitoring
-   - Auto-scaling
+**After**: nginx-proxy with Let's Encrypt companion
+- Watches Docker socket for container events
+- Auto-generates nginx configs from environment variables
+- Automatic SSL certificate generation and renewal
+- Zero configuration maintenance
+- Industry-standard solution with community support
+
+### Simplified Feature Set
+
+The system focuses on core deployment functionality:
+- ✅ Docker Swarm container orchestration
+- ✅ Network isolation per environment
+- ✅ Automatic HTTPS with SSL
+- ✅ REST API for programmatic access
+- ✅ Telegram bot for API key management
+- ❌ Claude Code integration (removed for simplicity)
+- ❌ MCP server (removed for simplicity)
 
 ## Technical Highlights
 
-- **16,593 lines of code** across 70 files
 - **Type-safe** throughout with TypeScript
 - **Production-ready** with health checks, graceful shutdown
-- **Well-documented** with inline comments and JSDoc
+- **Well-documented** with Swagger/OpenAPI
 - **Security-focused** with multiple layers of protection
 - **Scalable architecture** ready for feature expansion
 - **Comprehensive error handling** with structured logging
 
 ## Conclusion
 
-All 12 phases of the implementation plan have been completed successfully. The system is ready for testing and deployment. All core features are implemented, including:
+The system provides a complete Docker Swarm deployment platform with:
 
 ✅ Environment isolation with overlay networks
 ✅ Async deployment workflow with status tracking
 ✅ API key authentication via Telegram magic links
-✅ Automatic SSL with Let's Encrypt
+✅ Automatic SSL with nginx-proxy and Let's Encrypt
 ✅ Docker Swarm service management
-✅ REST API and MCP server
+✅ REST API with Swagger documentation
 ✅ Production deployment configuration
 ✅ Comprehensive security hardening
 

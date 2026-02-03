@@ -18,7 +18,10 @@ import {
   ApiSecurity,
 } from '@nestjs/swagger';
 import { DeploymentsService } from './deployments.service';
-import type { CreateDeploymentDto, CreateDeploymentFromGitDto } from './deployments.service';
+import type {
+  CreateDeploymentDto,
+  CreateDeploymentFromGitDto,
+} from './deployments.service';
 import { ApiKeyGuard } from '../../common/guards/api-key.guard';
 import { ScopesGuard } from '../../common/guards/scopes.guard';
 import { RequireScopes } from '../../common/decorators/require-scopes.decorator';
@@ -79,14 +82,18 @@ export class DeploymentsController {
             properties: {
               container: { type: 'number', example: 80 },
               host: { type: 'number', example: 8080 },
-              protocol: { type: 'string', enum: ['tcp', 'udp'], default: 'tcp' },
+              protocol: {
+                type: 'string',
+                enum: ['tcp', 'udp'],
+                default: 'tcp',
+              },
             },
           },
         },
         envVars: {
           type: 'object',
           description: 'Environment variables',
-          example: { NODE_ENV: 'production', PORT: '3000' },
+          example: { NODE_ENV: 'production', PORT: '3030' },
         },
         volumes: {
           type: 'array',
@@ -216,7 +223,11 @@ export class DeploymentsController {
             properties: {
               container: { type: 'number', example: 3000 },
               host: { type: 'number', example: 3000 },
-              protocol: { type: 'string', enum: ['tcp', 'udp'], default: 'tcp' },
+              protocol: {
+                type: 'string',
+                enum: ['tcp', 'udp'],
+                default: 'tcp',
+              },
             },
           },
         },

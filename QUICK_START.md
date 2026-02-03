@@ -100,6 +100,7 @@ nano backend/.env.production
 ```
 
 **Required Configuration**:
+
 ```bash
 # Change these values!
 API_KEY_SECRET=your-random-32-character-secret-here
@@ -133,6 +134,7 @@ chmod +x deploy.sh
 ```
 
 The script will:
+
 - ✓ Check Docker installation
 - ✓ Initialize Docker Swarm
 - ✓ Build all services
@@ -235,32 +237,6 @@ curl http://localhost:3000/deployments/$DEPLOYMENT_ID/logs?tail=100 \
   -H "X-API-Key: $API_KEY"
 ```
 
-## Using MCP Tools (for AI Agents)
-
-The platform includes MCP (Model Context Protocol) endpoints for AI agent integration:
-
-```bash
-# List available tools
-curl -X POST http://localhost:3000/mcp/tools/list \
-  -H "X-API-Key: $API_KEY"
-
-# Create environment via MCP
-curl -X POST http://localhost:3000/mcp/tools/create_environment \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"name": "ai-managed-env"}'
-
-# Create deployment via MCP
-curl -X POST http://localhost:3000/mcp/tools/create_deployment \
-  -H "X-API-Key: $API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "environmentId": "clx...",
-    "image": "nginx",
-    "tag": "alpine"
-  }'
-```
-
 ## Telegram Bot Commands
 
 All commands are available in your Telegram bot:
@@ -282,7 +258,7 @@ docker compose logs -f backend
 # Common issues:
 # 1. PostgreSQL not ready - wait 30 seconds
 # 2. Prisma migration needed - run: npx prisma migrate deploy
-# 3. Port 3000 in use - change PORT in .env
+# 3. Port 3030 in use - change PORT in .env
 ```
 
 ### Docker Swarm Not Initialized
