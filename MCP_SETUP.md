@@ -5,14 +5,14 @@ This guide shows you how to connect the Docker Swarm Deployment Platform to Clau
 ## Prerequisites
 
 1. **Get your API credentials:**
-   - Get an API key from the Telegram bot (`/api_create`)
-   - Get your User ID (you can find this in the database or via the API)
+    - Get an API key from the Telegram bot (`/api_create`)
+    - Get your User ID (you can find this in the database or via the API)
 
 2. **Build the backend:**
-   ```bash
-   cd backend
-   yarn build
-   ```
+    ```bash
+    cd backend
+    yarn build
+    ```
 
 ## Configuration
 
@@ -29,20 +29,20 @@ Add this configuration:
 
 ```json
 {
-  "mcpServers": {
-    "docker-swarm-deployment": {
-      "command": "node",
-      "args": [
-        "/Users/frankencoin/Documents/wrytes/deployment-system/backend/dist/mcp-server.js"
-      ],
-      "env": {
-        "API_KEY": "your-api-key-here",
-        "USER_ID": "your-user-id-here",
-        "DATABASE_URL": "postgresql://user:password@localhost:5432/deployment",
-        "NODE_ENV": "production"
-      }
-    }
-  }
+	"mcpServers": {
+		"docker-swarm-deployment": {
+			"command": "node",
+			"args": [
+				"/Users/frankencoin/Documents/wrytes/deployment-system/backend/dist/mcp-server.js"
+			],
+			"env": {
+				"API_KEY": "your-api-key-here",
+				"USER_ID": "your-user-id-here",
+				"DATABASE_URL": "postgresql://user:password@localhost:5432/deployment",
+				"NODE_ENV": "production"
+			}
+		}
+	}
 }
 ```
 
@@ -52,17 +52,17 @@ For development with auto-reload:
 
 ```json
 {
-  "mcpServers": {
-    "docker-swarm-deployment": {
-      "command": "yarn",
-      "args": ["mcp-server:dev"],
-      "cwd": "/Users/frankencoin/Documents/wrytes/deployment-system/backend",
-      "env": {
-        "API_KEY": "your-api-key-here",
-        "USER_ID": "your-user-id-here"
-      }
-    }
-  }
+	"mcpServers": {
+		"docker-swarm-deployment": {
+			"command": "yarn",
+			"args": ["mcp-server:dev"],
+			"cwd": "/Users/frankencoin/Documents/wrytes/deployment-system/backend",
+			"env": {
+				"API_KEY": "your-api-key-here",
+				"USER_ID": "your-user-id-here"
+			}
+		}
+	}
 }
 ```
 
@@ -71,11 +71,13 @@ For development with auto-reload:
 ### 1. Get API Key
 
 Via Telegram bot:
+
 ```
 /api_create
 ```
 
 Click the magic link and you'll receive an API key like:
+
 ```
 rw_prod_abc123.xyz789
 ```
@@ -83,11 +85,13 @@ rw_prod_abc123.xyz789
 ### 2. Get User ID
 
 Query the database:
+
 ```bash
 docker-compose exec postgres psql -U deployment_user -d deployment_db -c "SELECT id, \"telegramId\", \"telegramUsername\" FROM users;"
 ```
 
 Or via API:
+
 ```bash
 curl http://localhost:3000/auth/verify?token=YOUR_MAGIC_LINK_TOKEN
 ```
@@ -97,25 +101,28 @@ curl http://localhost:3000/auth/verify?token=YOUR_MAGIC_LINK_TOKEN
 Once configured, Claude Code will have access to these tools:
 
 ### 1. `create_environment`
+
 Create an isolated deployment environment
 
 ```typescript
 {
-  name: string;  // Environment name
-  userId: string; // Your user ID (auto-filled from config)
+	name: string; // Environment name
+	userId: string; // Your user ID (auto-filled from config)
 }
 ```
 
 ### 2. `list_environments`
+
 List all your environments
 
 ```typescript
 {
-  userId: string; // Your user ID (auto-filled from config)
+	userId: string; // Your user ID (auto-filled from config)
 }
 ```
 
 ### 3. `create_deployment`
+
 Deploy a container from Docker Hub
 
 ```typescript
@@ -131,6 +138,7 @@ Deploy a container from Docker Hub
 ```
 
 ### 4. `create_deployment_from_git`
+
 Deploy from a Git repository (⭐ NEW!)
 
 ```typescript
@@ -149,27 +157,30 @@ Deploy from a Git repository (⭐ NEW!)
 ```
 
 ### 5. `get_deployment_status`
+
 Check deployment status
 
 ```typescript
 {
-  userId: string;
-  jobId: string;  // From create_deployment response
+	userId: string;
+	jobId: string; // From create_deployment response
 }
 ```
 
 ### 6. `make_environment_public`
+
 Enable HTTPS with automatic SSL
 
 ```typescript
 {
-  userId: string;
-  environmentId: string;
-  domain: string;  // Must point to this server
+	userId: string;
+	environmentId: string;
+	domain: string; // Must point to this server
 }
 ```
 
 ### 7. `get_deployment_logs`
+
 Retrieve container logs
 
 ```typescript
@@ -183,6 +194,7 @@ Retrieve container logs
 ## Testing the Setup
 
 ### 1. Start your backend API:
+
 ```bash
 cd backend
 yarn start:dev
@@ -191,6 +203,7 @@ yarn start:dev
 ### 2. Start Claude Code and test the MCP connection
 
 Open Claude Code and try:
+
 ```
 List my deployment environments
 ```
@@ -213,25 +226,27 @@ to environment "test-env" using Node.js 22
 ### MCP server not connecting
 
 1. **Check logs:**
-   ```bash
-   # Claude Code logs
-   tail -f ~/.claude/logs/mcp-server-docker-swarm-deployment.log
-   ```
+
+    ```bash
+    # Claude Code logs
+    tail -f ~/.claude/logs/mcp-server-docker-swarm-deployment.log
+    ```
 
 2. **Verify environment variables:**
-   - API_KEY is set and valid
-   - USER_ID matches a user in the database
-   - DATABASE_URL is correct
+    - API_KEY is set and valid
+    - USER_ID matches a user in the database
+    - DATABASE_URL is correct
 
 3. **Test manually:**
-   ```bash
-   cd backend
-   API_KEY=your-key USER_ID=your-id yarn mcp-server:dev
-   ```
+    ```bash
+    cd backend
+    API_KEY=your-key USER_ID=your-id yarn mcp-server:dev
+    ```
 
 ### API Key issues
 
 Make sure your API key:
+
 - Is in the format `rw_prod_{keyId}.{secret}`
 - Has not been revoked
 - Has the necessary scopes (ENVIRONMENTS_WRITE, DEPLOYMENTS_WRITE, etc.)
@@ -239,11 +254,13 @@ Make sure your API key:
 ### Database connection issues
 
 Ensure PostgreSQL is running:
+
 ```bash
 docker-compose ps postgres
 ```
 
 Check connection:
+
 ```bash
 psql $DATABASE_URL -c "SELECT 1;"
 ```
@@ -262,6 +279,7 @@ I want to deploy a Next.js application:
 ```
 
 Claude Code will:
+
 1. Call `create_environment` with name "my-nextjs-app"
 2. Call `create_deployment_from_git` with all the parameters
 3. Poll `get_deployment_status` to track progress
@@ -274,6 +292,7 @@ What's the status of my deployments?
 ```
 
 Claude Code will:
+
 1. Call `list_environments` to get all environments
 2. For each environment, check for recent deployments
 3. Present a summary
@@ -284,29 +303,29 @@ Claude Code will:
 
 ```json
 {
-  "mcpServers": {
-    "docker-swarm-dev": {
-      "command": "node",
-      "args": ["dist/mcp-server.js"],
-      "cwd": "/path/to/backend",
-      "env": {
-        "API_KEY": "dev-api-key",
-        "USER_ID": "dev-user-id",
-        "NODE_ENV": "development"
-      }
-    },
-    "docker-swarm-prod": {
-      "command": "node",
-      "args": ["dist/mcp-server.js"],
-      "cwd": "/path/to/backend",
-      "env": {
-        "API_KEY": "prod-api-key",
-        "USER_ID": "prod-user-id",
-        "NODE_ENV": "production",
-        "DATABASE_URL": "postgresql://prod-host:5432/db"
-      }
-    }
-  }
+	"mcpServers": {
+		"docker-swarm-dev": {
+			"command": "node",
+			"args": ["dist/mcp-server.js"],
+			"cwd": "/path/to/backend",
+			"env": {
+				"API_KEY": "dev-api-key",
+				"USER_ID": "dev-user-id",
+				"NODE_ENV": "development"
+			}
+		},
+		"docker-swarm-prod": {
+			"command": "node",
+			"args": ["dist/mcp-server.js"],
+			"cwd": "/path/to/backend",
+			"env": {
+				"API_KEY": "prod-api-key",
+				"USER_ID": "prod-user-id",
+				"NODE_ENV": "production",
+				"DATABASE_URL": "postgresql://prod-host:5432/db"
+			}
+		}
+	}
 }
 ```
 
@@ -320,6 +339,7 @@ Claude Code will:
 ## Next Steps
 
 Once configured, you can use Claude Code to:
+
 - Create and manage environments
 - Deploy Docker containers
 - Deploy from Git repositories

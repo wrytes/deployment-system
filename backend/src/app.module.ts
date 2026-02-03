@@ -30,6 +30,10 @@ import { LogsModule } from './modules/logs/logs.module';
 // MCP module
 import { McpModule } from './mcp/mcp.module';
 
+// App controller and service
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
+
 @Module({
   imports: [
     // Configuration
@@ -94,5 +98,7 @@ import { McpModule } from './mcp/mcp.module';
     // MCP module
     McpModule,
   ],
+  controllers: [AppController],
+  providers: [AppService],
 })
 export class AppModule {}

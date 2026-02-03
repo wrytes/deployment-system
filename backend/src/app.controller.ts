@@ -9,18 +9,38 @@ export class AppController {
 
   @Get()
   @ApiOperation({
-    summary: 'Welcome message',
-    description: 'Returns a welcome message for the API',
+    summary: 'API information',
+    description:
+      'Returns API information, version, documentation links, and getting started guide',
   })
   @ApiResponse({
     status: 200,
-    description: 'Welcome message',
+    description: 'API information and helpful links',
     schema: {
-      type: 'string',
-      example: 'Docker Swarm Deployment Platform API',
+      example: {
+        message: '🚀 Docker Swarm Deployment Platform',
+        version: '1.0.0',
+        description:
+          'REST API for managing isolated Docker Swarm deployments with automatic SSL',
+        documentation: 'http://localhost:3000/api/docs',
+        endpoints: {
+          health: 'http://localhost:3000/health',
+          docs: 'http://localhost:3000/api/docs',
+        },
+        resources: {
+          github: 'https://github.com/wrytes/deployment-system',
+          telegram: 'Contact @your_bot for API keys',
+        },
+        gettingStarted: [
+          '1. Get API key via Telegram bot',
+          '2. Visit the magic link to retrieve your key',
+          '3. Use X-API-Key header in all authenticated requests',
+          '4. Check /api/docs for full API documentation',
+        ],
+      },
     },
   })
-  getHello(): string {
+  getHello() {
     return this.appService.getHello();
   }
 }
