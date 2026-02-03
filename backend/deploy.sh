@@ -26,10 +26,10 @@ fi
 
 echo -e "${GREEN}✓ Docker daemon is running${NC}"
 
-# Check if .env.production exists
-if [ ! -f ".env.production" ]; then
-    echo -e "${RED}Error: .env.production not found${NC}"
-    echo -e "${YELLOW}Please create .env.production with your production configuration${NC}"
+# Check if .env exists
+if [ ! -f ".env" ]; then
+    echo -e "${RED}Error: .env not found${NC}"
+    echo -e "${YELLOW}Please create .env with your configuration${NC}"
     exit 1
 fi
 
@@ -83,6 +83,5 @@ echo "To stop services:"
 echo "  docker compose -f docker-compose.prod.yml down"
 echo ""
 echo "Next steps:"
-echo "  1. Configure your Telegram bot token in .env.production"
-echo "  2. Update DNS records to point your domain to this server"
-echo "  3. Test the deployment with /start in your Telegram bot"
+echo "  1. Update DNS records to point your domain to this server"
+echo "  2. Test the deployment with /start in your Telegram bot"
