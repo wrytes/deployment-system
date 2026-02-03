@@ -313,6 +313,11 @@ export class EnvironmentsService {
 
   private async addProxyEnvVarsToService(serviceName: string, domain: string): Promise<void> {
     const service = await this.containerService.getService(serviceName);
+    if (!service) {
+      this.logger.warn(`Service ${serviceName} not found, skipping proxy env vars update`);
+      return;
+    }
+
     const inspection = await service.inspect();
 
     const currentEnv = inspection.Spec.TaskTemplate.ContainerSpec.Env || [];
@@ -324,7 +329,7 @@ export class EnvironmentsService {
 
     // Add proxy env vars if not already present
     const envVarsToAdd = proxyEnvVars.filter(
-      envVar => !currentEnv.some(existing => existing.startsWith(envVar.split('=')[0] + '='))
+      (envVar: string) => !currentEnv.some((existing: string) => existing.startsWith(envVar.split('=')[0] + '='))
     );
 
     if (envVarsToAdd.length > 0) {

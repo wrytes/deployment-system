@@ -205,4 +205,10 @@ export class AuthService {
 
     return { id: user.id, isNew };
   }
+
+  async findUserByTelegramId(telegramId: bigint) {
+    return this.prisma.user.findUnique({
+      where: { telegramId },
+    });
+  }
 }

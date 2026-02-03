@@ -359,7 +359,7 @@ export class TelegramUpdate implements OnModuleInit {
 
       // Find session
       const sessions = await this.claudeSessionsService.listSessions(user.id);
-      const session = sessions.find((s) => s.projectName === projectName);
+      const session = sessions.find((s: any) => s.projectName === projectName);
 
       if (!session) {
         await ctx.reply(

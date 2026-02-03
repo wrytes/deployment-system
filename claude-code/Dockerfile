@@ -19,11 +19,11 @@ RUN npm install -g typescript ts-node @nestjs/cli prisma
 
 # Install common packages
 RUN npm install -g eslint prettier
-RUN pip3 install --no-cache-dir requests flask fastapi uvicorn pytest black
+RUN pip3 install --break-system-packages --no-cache-dir requests flask fastapi uvicorn pytest black
 
 # Create non-root user
-RUN groupadd -g 1000 claude && \
-    useradd -u 1000 -g claude -s /bin/bash -m claude
+RUN groupadd -g 1001 claude && \
+    useradd -u 1001 -g claude -s /bin/bash -m claude
 
 # MCP config directory
 RUN mkdir -p /home/claude/.config/claude && \

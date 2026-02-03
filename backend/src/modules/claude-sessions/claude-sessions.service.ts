@@ -105,7 +105,7 @@ export class ClaudeSessionsService {
       // Decrypt API key if present
       const anthropicApiKey = session.anthropicApiKey
         ? await this.decryptApiKey(session.anthropicApiKey)
-        : process.env.ANTHROPIC_API_KEY;
+        : (process.env.ANTHROPIC_API_KEY || '');
 
       // Prepare container configuration
       const containerConfig = {
@@ -148,6 +148,9 @@ export class ClaudeSessionsService {
 
       // Get container ID
       const service = await this.containerService.getService(session.containerName);
+      if (!service) {
+        throw new Error('Failed to retrieve created service');
+      }
       const inspection = await service.inspect();
       const containerId = inspection.ID;
 

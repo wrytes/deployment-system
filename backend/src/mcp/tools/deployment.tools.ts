@@ -5,9 +5,6 @@ import { DeploymentsService } from '../../modules/deployments/deployments.servic
 import { ClaudeSessionsService } from '../../modules/claude-sessions/claude-sessions.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
 import { ContainerService } from '../../integrations/docker/container.service';
-import * as fs from 'fs/promises';
-import * as path from 'path';
-import * as tar from 'tar';
 
 @Injectable()
 export class DeploymentTools {
