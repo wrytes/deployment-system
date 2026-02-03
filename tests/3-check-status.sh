@@ -27,7 +27,7 @@ echo ""
 for i in $(seq 1 $MAX_ATTEMPTS); do
   echo "Attempt $i/$MAX_ATTEMPTS..."
 
-  RESPONSE=$(curl -s http://localhost:3000/deployments/job/${JOB_ID} \
+  RESPONSE=$(curl -s http://localhost:3030/deployments/job/${JOB_ID} \
     -H "X-API-Key: ${API_KEY}")
 
   STATUS=$(echo "$RESPONSE" | python3 -c "import sys, json; print(json.load(sys.stdin)['deployment']['status'])" 2>/dev/null)

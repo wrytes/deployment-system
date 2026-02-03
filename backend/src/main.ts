@@ -92,15 +92,16 @@ async function bootstrap() {
     },
   });
 
-  // Get port from config
+  // Get port and base URL from config
   const port = configService.get<number>('app.port', 3000);
+  const baseUrl = configService.get<string>('app.baseUrl');
 
   // Start server
   await app.listen(port);
 
-  logger.log(`🚀 Application is running on: http://localhost:${port}`);
-  logger.log(`📚 API Documentation: http://localhost:${port}/api/docs`);
-  logger.log(`📊 Health check: http://localhost:${port}/health`);
+  logger.log(`🚀 Application is running on: ${baseUrl}`);
+  logger.log(`📚 API Documentation: ${baseUrl}/api/docs`);
+  logger.log(`📊 Health check: ${baseUrl}/health`);
   logger.log(`🔧 Environment: ${configService.get('app.nodeEnv')}`);
 }
 

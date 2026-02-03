@@ -15,5 +15,5 @@ fi
 echo "=== Listing All Environments ==="
 echo ""
 
-curl -s http://localhost:3000/environments \
+curl -s http://localhost:3030/environments \
   -H "X-API-Key: ${API_KEY}" | python3 -m json.tool

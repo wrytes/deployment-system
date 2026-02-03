@@ -6,8 +6,7 @@ export class AppService {
   constructor(private readonly configService: ConfigService) {}
 
   getHello() {
-    const port = this.configService.get<number>('app.port', 3000);
-    const baseUrl = `http://localhost:${port}`;
+    const baseUrl = this.configService.get<string>('app.baseUrl');
 
     return {
       message: '🚀 Docker Swarm Deployment Platform',

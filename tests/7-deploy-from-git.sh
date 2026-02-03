@@ -32,7 +32,7 @@ echo "Host Port: ${HOST_PORT}"
 echo "Container Port: ${CONTAINER_PORT}"
 echo ""
 
-curl -s -X POST http://localhost:3000/deployments/from-git \
+curl -s -X POST http://localhost:3030/deployments/from-git \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d "{

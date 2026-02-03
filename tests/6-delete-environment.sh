@@ -34,7 +34,7 @@ if [ "$CONFIRM" != "yes" ]; then
   exit 0
 fi
 
-curl -s -X DELETE http://localhost:3000/environments/${ENV_ID} \
+curl -s -X DELETE http://localhost:3030/environments/${ENV_ID} \
   -H "X-API-Key: ${API_KEY}" | python3 -m json.tool
 
 echo ""

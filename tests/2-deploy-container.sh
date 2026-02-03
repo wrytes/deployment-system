@@ -25,7 +25,7 @@ if [ -z "$ENV_ID" ]; then
 fi
 
 echo "=== Deploying ${IMAGE}:${TAG} to environment ${ENV_ID} ==="
-curl -s -X POST http://localhost:3000/deployments \
+curl -s -X POST http://localhost:3030/deployments \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d "{

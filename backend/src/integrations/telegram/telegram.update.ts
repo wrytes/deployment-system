@@ -106,8 +106,8 @@ export class TelegramUpdate implements OnModuleInit {
       );
 
       // Get base URL from config
-      const port = this.configService.get<number>('app.port', 3000);
-      const magicLink = `http://localhost:${port}/auth/verify?token=${token}`;
+      const baseUrl = this.configService.get<string>('app.baseUrl');
+      const magicLink = `${baseUrl}/auth/verify?token=${token}`;
 
       await ctx.reply(
         `🔑 *API Key Magic Link*\n\n` +
@@ -238,8 +238,8 @@ export class TelegramUpdate implements OnModuleInit {
       `3. Use the API key with the REST API\n\n` +
       `📚 API Documentation:\n` +
       `Full documentation available at:\n` +
-      `http://localhost:3000/api/docs\n\n` +
-      `API Base URL: http://localhost:3000\n` +
+      `${this.configService.get('app.baseUrl')}/api/docs\n\n` +
+      `API Base URL: ${this.configService.get('app.baseUrl')}\n` +
       `Authentication: Include X-API-Key header in all requests`;
 
     await ctx.reply(helpText);

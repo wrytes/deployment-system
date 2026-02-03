@@ -22,10 +22,10 @@ export class AppController {
         version: '1.0.0',
         description:
           'REST API for managing isolated Docker Swarm deployments with automatic SSL',
-        documentation: 'http://localhost:3000/api/docs',
+        documentation: 'https://your-domain.com:3030/api/docs',
         endpoints: {
-          health: 'http://localhost:3000/health',
-          docs: 'http://localhost:3000/api/docs',
+          health: 'https://your-domain.com:3030/health',
+          docs: 'https://your-domain.com:3030/api/docs',
         },
         resources: {
           github: 'https://github.com/wrytes/deployment-system',

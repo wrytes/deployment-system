@@ -17,7 +17,7 @@ fi
 ENV_NAME="${ENV_NAME:-test-env}"
 
 echo "=== Creating Environment: ${ENV_NAME} ==="
-curl -s -X POST http://localhost:3000/environments \
+curl -s -X POST http://localhost:3030/environments \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"${ENV_NAME}\"}" | python3 -m json.tool

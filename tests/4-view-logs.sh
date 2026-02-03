@@ -24,5 +24,5 @@ fi
 echo "=== Viewing Logs (last ${TAIL} lines) ==="
 echo ""
 
-curl -s "http://localhost:3000/deployments/${DEPLOYMENT_ID}/logs?tail=${TAIL}" \
+curl -s "http://localhost:3030/deployments/${DEPLOYMENT_ID}/logs?tail=${TAIL}" \
   -H "X-API-Key: ${API_KEY}" | python3 -c "import sys, json; print(json.load(sys.stdin)['logs'])"
