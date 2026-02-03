@@ -6,9 +6,11 @@ import {
   MemoryHealthIndicator,
   DiskHealthIndicator,
 } from '@nestjs/terminus';
+import { ApiTags, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { PrismaService } from '../database/prisma.service';
 
 @Controller('health')
+@ApiTags('Health')
 export class HealthController {
   constructor(
     private health: HealthCheckService,
@@ -20,6 +22,38 @@ export class HealthController {
 
   @Get()
   @HealthCheck()
+  @ApiOperation({
+    summary: 'System health check',
+    description:
+      'Checks database connectivity, memory usage (heap and RSS), and disk space. ' +
+      'Returns detailed status for each health indicator.',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'All health checks passed',
+    schema: {
+      example: {
+        status: 'ok',
+        info: {
+          database: { status: 'up' },
+          memory_heap: { status: 'up' },
+          memory_rss: { status: 'up' },
+          storage: { status: 'up' },
+        },
+        error: {},
+        details: {
+          database: { status: 'up' },
+          memory_heap: { status: 'up' },
+          memory_rss: { status: 'up' },
+          storage: { status: 'up' },
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 503,
+    description: 'Service unhealthy - one or more health checks failed',
+  })
   check() {
     return this.health.check([
       // Database health check

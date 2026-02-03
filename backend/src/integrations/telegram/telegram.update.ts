@@ -235,11 +235,12 @@ export class TelegramUpdate implements OnModuleInit {
       `Getting Started:\n` +
       `1. Use /api_create to get an API key\n` +
       `2. Click the magic link to retrieve your key\n` +
-      `3. Use the API key with the REST API or MCP server\n\n` +
-      `API Documentation:\n` +
-      `POST /environments - Create environment\n` +
-      `POST /deployments - Deploy container\n` +
-      `POST /environments/:id/public - Enable public access`;
+      `3. Use the API key with the REST API\n\n` +
+      `📚 API Documentation:\n` +
+      `Full documentation available at:\n` +
+      `http://localhost:3000/api/docs\n\n` +
+      `API Base URL: http://localhost:3000\n` +
+      `Authentication: Include X-API-Key header in all requests`;
 
     await ctx.reply(helpText);
   }
