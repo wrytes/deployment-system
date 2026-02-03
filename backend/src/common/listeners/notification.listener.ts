@@ -244,9 +244,8 @@ export class NotificationListener {
     return (
       `🌐 *Environment Made Public*\n\n` +
       `Environment: \`${event.environmentName}\`\n` +
-      `Domain: \`${event.publicDomain}\`\n\n` +
-      `Your environment is now accessible at:\n` +
-      `https://${event.publicDomain}`
+      `Status: *PUBLIC*\n\n` +
+      `Nginx-proxy attached. You can now create deployments with virtualHost.`
     );
   }
 
@@ -255,15 +254,26 @@ export class NotificationListener {
   ): string {
     const deploymentType = event.isGitDeployment ? 'Git' : 'Image';
 
-    return (
+    let message =
       `✅ *Deployment Successful*\n\n` +
-      `Job ID: \`${event.deploymentId}\`\n` +
       `Environment: \`${event.environmentName}\`\n` +
       `Type: *${deploymentType}*\n` +
       `Image: \`${event.image}:${event.tag}\`\n` +
-      `Status: *RUNNING*\n\n` +
-      `Your deployment is now live and running.`
-    );
+      `Status: *RUNNING*`;
+
+    // Add public access info if virtualHost is configured
+    if (event.virtualHost && event.virtualPort) {
+      message +=
+        `\n\n` +
+        `🌐 *Public Access*\n` +
+        `Domain: \`${event.virtualHost}\`\n` +
+        `Port: \`${event.virtualPort}\`\n\n` +
+        `Visit: https://${event.virtualHost}`;
+    } else {
+      message += `\n\n` + `Your deployment is now live and running.`;
+    }
+
+    return message;
   }
 
   private formatDeploymentFailedMessage(event: DeploymentFailedEvent): string {

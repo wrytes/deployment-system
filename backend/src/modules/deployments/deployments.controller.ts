@@ -108,6 +108,17 @@ export class DeploymentsController {
             },
           },
         },
+        virtualHost: {
+          type: 'string',
+          description:
+            'Domain for public access (only accessible if environment.isPublic=true)',
+          example: 'api.example.com',
+        },
+        virtualPort: {
+          type: 'number',
+          description: 'Container port to expose (required if virtualHost set)',
+          example: 80,
+        },
       },
     },
   })
@@ -249,6 +260,17 @@ export class DeploymentsController {
             },
           },
         },
+        virtualHost: {
+          type: 'string',
+          description:
+            'Domain for public access (only accessible if environment.isPublic=true)',
+          example: 'api.example.com',
+        },
+        virtualPort: {
+          type: 'number',
+          description: 'Container port to expose (required if virtualHost set)',
+          example: 80,
+        },
       },
     },
   })
@@ -315,7 +337,6 @@ export class DeploymentsController {
             id: 'clx123abc456def',
             name: 'my-app-prod',
             isPublic: true,
-            publicDomain: 'my-app.example.com',
           },
           service: {
             name: 'my-app-prod_nginx_1738579200',

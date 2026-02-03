@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../core/database/prisma.service';
@@ -29,6 +30,8 @@ export interface CreateDeploymentDto {
   ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>;
   envVars?: Record<string, string>;
   volumes?: Array<{ name: string; path: string; readOnly?: boolean }>;
+  virtualHost?: string;   // Optional domain for public access
+  virtualPort?: number;   // Optional port for proxy
 }
 
 export interface CreateDeploymentFromGitDto {
@@ -45,6 +48,8 @@ export interface CreateDeploymentFromGitDto {
   ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>;
   envVars?: Record<string, string>;
   volumes?: Array<{ name: string; path: string; readOnly?: boolean }>;
+  virtualHost?: string;   // Optional domain for public access
+  virtualPort?: number;   // Optional port for proxy
 }
 
 @Injectable()
@@ -80,6 +85,36 @@ export class DeploymentsService {
       );
     }
 
+    // Validate virtual host configuration
+    if (dto.virtualHost || dto.virtualPort) {
+      if (dto.virtualHost && !dto.virtualPort) {
+        throw new BadRequestException(
+          'virtualPort is required when virtualHost is specified',
+        );
+      }
+
+      if (dto.virtualHost) {
+        // Validate domain format
+        if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(dto.virtualHost)) {
+          throw new BadRequestException('Invalid domain format');
+        }
+
+        // Check uniqueness - only RUNNING deployments
+        const existing = await this.prisma.deployment.findFirst({
+          where: {
+            virtualHost: dto.virtualHost,
+            status: DeploymentStatus.RUNNING,
+          },
+        });
+
+        if (existing) {
+          throw new ConflictException(
+            `Domain ${dto.virtualHost} is already in use by a running deployment`,
+          );
+        }
+      }
+    }
+
     // Generate job ID
     const jobId = nanoid(this.JOB_ID_LENGTH);
 
@@ -94,6 +129,8 @@ export class DeploymentsService {
         ports: dto.ports as any,
         envVars: dto.envVars as any,
         volumes: dto.volumes as any,
+        virtualHost: dto.virtualHost || null,
+        virtualPort: dto.virtualPort || null,
         status: DeploymentStatus.PENDING,
       },
     });
@@ -212,16 +249,11 @@ export class DeploymentsService {
 
       const envVars = deployment.envVars as any as Record<string, string>;
 
-      // Check if environment is public and inject proxy env vars
-      // nginx-proxy will auto-detect these via docker socket
-      if (
-        deployment.environment.isPublic &&
-        deployment.environment.publicDomain
-      ) {
+      // Inject proxy env vars if deployment has virtualHost
+      if (deployment.virtualHost && deployment.virtualPort) {
         const proxyEnvVars = this.getProxyEnvironmentVariables(
-          deployment.environment.publicDomain,
-          serviceName,
-          ports,
+          deployment.virtualHost,
+          deployment.virtualPort,
         );
         Object.assign(envVars || {}, proxyEnvVars);
       }
@@ -273,6 +305,8 @@ export class DeploymentsService {
           deployment.image,
           deployment.tag,
           false, // isGitDeployment
+          deployment.virtualHost || undefined,
+          deployment.virtualPort || undefined,
         ),
       );
 
@@ -330,7 +364,6 @@ export class DeploymentsService {
             id: true,
             name: true,
             isPublic: true,
-            publicDomain: true,
           },
         },
       },
@@ -513,6 +546,36 @@ export class DeploymentsService {
       throw new BadRequestException('Environment is not active');
     }
 
+    // Validate virtual host configuration
+    if (dto.virtualHost || dto.virtualPort) {
+      if (dto.virtualHost && !dto.virtualPort) {
+        throw new BadRequestException(
+          'virtualPort is required when virtualHost is specified',
+        );
+      }
+
+      if (dto.virtualHost) {
+        // Validate domain format
+        if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(dto.virtualHost)) {
+          throw new BadRequestException('Invalid domain format');
+        }
+
+        // Check uniqueness - only RUNNING deployments
+        const existing = await this.prisma.deployment.findFirst({
+          where: {
+            virtualHost: dto.virtualHost,
+            status: DeploymentStatus.RUNNING,
+          },
+        });
+
+        if (existing) {
+          throw new ConflictException(
+            `Domain ${dto.virtualHost} is already in use by a running deployment`,
+          );
+        }
+      }
+    }
+
     // Generate job ID and image name
     const jobId = nanoid(this.JOB_ID_LENGTH);
     const timestampSeconds = Math.floor(Date.now() / 1000);
@@ -530,6 +593,8 @@ export class DeploymentsService {
         ports: dto.ports || [],
         envVars: dto.envVars || {},
         volumes: dto.volumes || undefined,
+        virtualHost: dto.virtualHost || null,
+        virtualPort: dto.virtualPort || null,
         status: DeploymentStatus.PENDING,
       },
     });
@@ -658,16 +723,11 @@ export class DeploymentsService {
       // Prepare environment variables
       const envVars = (deployment.envVars as Record<string, string>) || {};
 
-      // Check if environment is public and inject proxy env vars
-      // nginx-proxy will auto-detect these via docker socket
-      if (
-        deployment.environment.isPublic &&
-        deployment.environment.publicDomain
-      ) {
+      // Inject proxy env vars if deployment has virtualHost
+      if (deployment.virtualHost && deployment.virtualPort) {
         const proxyEnvVars = this.getProxyEnvironmentVariables(
-          deployment.environment.publicDomain,
-          serviceName,
-          deployment.ports as any[],
+          deployment.virtualHost,
+          deployment.virtualPort,
         );
         Object.assign(envVars, proxyEnvVars);
       }
@@ -718,6 +778,8 @@ export class DeploymentsService {
           deployment.image,
           deployment.tag || 'latest',
           true, // isGitDeployment
+          deployment.virtualHost || undefined,
+          deployment.virtualPort || undefined,
         ),
       );
 
@@ -765,25 +827,14 @@ export class DeploymentsService {
   }
 
   private getProxyEnvironmentVariables(
-    domain: string,
-    serviceName: string,
-    ports?: Array<{
-      container: number;
-      host?: number;
-      protocol?: 'tcp' | 'udp';
-    }>,
+    virtualHost: string,
+    virtualPort: number,
   ): Record<string, string> {
-    const proxyEnvVars: Record<string, string> = {
-      VIRTUAL_HOST: domain,
-      LETSENCRYPT_HOST: domain,
-      LETSENCRYPT_EMAIL:
-        process.env.LETSENCRYPT_EMAIL || 'your-email@example.com',
+    return {
+      VIRTUAL_HOST: virtualHost,
+      VIRTUAL_PORT: virtualPort.toString(),
+      LETSENCRYPT_HOST: virtualHost,
+      // LETSENCRYPT_EMAIL is configured globally
     };
-
-    if (ports && ports.length > 0) {
-      proxyEnvVars.VIRTUAL_PORT = ports[0].container.toString();
-    }
-
-    return proxyEnvVars;
   }
 }

@@ -67,7 +67,6 @@ export class EnvironmentsController {
           overlayNetworkId: 'overlay_env_my-app-prod_1738579200',
           status: 'ACTIVE',
           isPublic: false,
-          publicDomain: null,
           createdAt: '2026-02-03T12:00:00.000Z',
         },
       },
@@ -115,7 +114,6 @@ export class EnvironmentsController {
             name: 'my-app-prod',
             status: 'ACTIVE',
             isPublic: true,
-            publicDomain: 'my-app.example.com',
             createdAt: '2026-02-03T12:00:00.000Z',
           },
         ],
@@ -161,7 +159,6 @@ export class EnvironmentsController {
           overlayNetworkId: 'overlay_env_my-app-prod_1738579200',
           status: 'ACTIVE',
           isPublic: true,
-          publicDomain: 'my-app.example.com',
           createdAt: '2026-02-03T12:00:00.000Z',
         },
       },
@@ -236,31 +233,16 @@ export class EnvironmentsController {
   @Post(':id/public')
   @RequireScopes(ApiKeyScope.ENVIRONMENTS_WRITE)
   @ApiOperation({
-    summary: 'Enable public access',
+    summary: 'Enable public access for environment',
     description:
-      'Make an environment publicly accessible via HTTPS with automatic SSL. ' +
-      "This configures Nginx reverse proxy and requests Let's Encrypt certificate. " +
-      "Domain must point to this server's IP address. " +
+      'Attach nginx-proxy to environment network. ' +
+      'Deployments can then be configured with virtualHost to receive traffic. ' +
       '\n\n**Required scope**: `ENVIRONMENTS_WRITE`',
   })
   @ApiParam({
     name: 'id',
     description: 'Environment ID to make public',
     example: 'clx123abc456def',
-  })
-  @ApiBody({
-    schema: {
-      type: 'object',
-      required: ['domain'],
-      properties: {
-        domain: {
-          type: 'string',
-          description:
-            'Domain name for public access (must point to this server)',
-          example: 'my-app.example.com',
-        },
-      },
-    },
   })
   @ApiResponse({
     status: 200,
@@ -271,7 +253,6 @@ export class EnvironmentsController {
           id: 'clx123abc456def',
           name: 'my-app-prod',
           isPublic: true,
-          publicDomain: 'my-app.example.com',
         },
       },
     },
@@ -291,12 +272,10 @@ export class EnvironmentsController {
   async makePublic(
     @CurrentUser() user: User,
     @Param('id') environmentId: string,
-    @Body('domain') domain: string,
   ) {
     const environment = await this.environmentsService.makePublic(
       user.id,
       environmentId,
-      domain,
     );
     return { environment };
   }

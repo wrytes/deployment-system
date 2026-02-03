@@ -294,10 +294,8 @@ export class EnvironmentsService {
     }
   }
 
-  async makePublic(userId: string, environmentId: string, domain: string) {
-    this.logger.log(
-      `Making environment ${environmentId} public with domain ${domain}`,
-    );
+  async makePublic(userId: string, environmentId: string) {
+    this.logger.log(`Making environment ${environmentId} public`);
 
     const environment = await this.getEnvironment(userId, environmentId);
 
@@ -311,20 +309,6 @@ export class EnvironmentsService {
       );
     }
 
-    // Validate domain format
-    if (!/^[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/.test(domain)) {
-      throw new BadRequestException('Invalid domain format');
-    }
-
-    // Check if domain is already in use
-    const existingDomain = await this.prisma.environment.findUnique({
-      where: { publicDomain: domain },
-    });
-
-    if (existingDomain) {
-      throw new ConflictException('Domain is already in use');
-    }
-
     try {
       // Attach nginx-proxy to this environment's overlay network for isolation
       const nginxContainerName =
@@ -334,30 +318,23 @@ export class EnvironmentsService {
         environment.overlayNetworkId,
       );
 
-      // Update database
+      // Update database - just toggle isPublic
       const updated = await this.prisma.environment.update({
         where: { id: environmentId },
-        data: { isPublic: true, publicDomain: domain },
+        data: { isPublic: true },
       });
 
-      // Update existing services to add VIRTUAL_HOST env vars
-      // nginx-proxy will auto-detect them via docker socket
-      await this.updateDeploymentsForPublicAccess(environmentId, domain);
-
-      // Emit environment made public event
+      // Emit environment made public event (no domain parameter)
       this.eventEmitter.emit(
         'environment.made_public',
         new EnvironmentMadePublicEvent(
           userId,
           environmentId,
           environment.name,
-          domain,
         ),
       );
 
-      this.logger.log(
-        `Environment ${environmentId} is now public at ${domain}`,
-      );
+      this.logger.log(`Environment ${environmentId} is now public`);
       return updated;
     } catch (error) {
       // Emit environment error event
@@ -377,68 +354,4 @@ export class EnvironmentsService {
     }
   }
 
-  private async updateDeploymentsForPublicAccess(
-    environmentId: string,
-    domain: string,
-  ): Promise<void> {
-    const deployments = await this.prisma.deployment.findMany({
-      where: { environmentId, status: DeploymentStatus.RUNNING },
-      include: { service: true },
-    });
-
-    // Update running services to add proxy env vars
-    // nginx-proxy watches docker socket and will auto-configure
-    for (const deployment of deployments) {
-      if (
-        deployment.service?.name &&
-        deployment.service.status === ServiceStatus.RUNNING
-      ) {
-        await this.addProxyEnvVarsToService(deployment.service.name, domain);
-      }
-    }
-  }
-
-  private async addProxyEnvVarsToService(
-    serviceName: string,
-    domain: string,
-  ): Promise<void> {
-    const service = await this.containerService.getService(serviceName);
-    if (!service) {
-      this.logger.warn(
-        `Service ${serviceName} not found, skipping proxy env vars update`,
-      );
-      return;
-    }
-
-    const inspection = await service.inspect();
-
-    const currentEnv = inspection.Spec.TaskTemplate.ContainerSpec.Env || [];
-    const proxyEnvVars = [
-      `VIRTUAL_HOST=${domain}`,
-      `LETSENCRYPT_HOST=${domain}`,
-      `LETSENCRYPT_EMAIL=${process.env.LETSENCRYPT_EMAIL || 'your-email@example.com'}`,
-    ];
-
-    // Add proxy env vars if not already present
-    const envVarsToAdd = proxyEnvVars.filter(
-      (envVar: string) =>
-        !currentEnv.some((existing: string) =>
-          existing.startsWith(envVar.split('=')[0] + '='),
-        ),
-    );
-
-    if (envVarsToAdd.length > 0) {
-      await service.update({
-        version: parseInt(inspection.Version.Index),
-        TaskTemplate: {
-          ...inspection.Spec.TaskTemplate,
-          ContainerSpec: {
-            ...inspection.Spec.TaskTemplate.ContainerSpec,
-            Env: [...currentEnv, ...envVarsToAdd],
-          },
-        },
-      });
-      this.logger.log(`Added proxy env vars to service ${serviceName}`);
-    }
-  }
 }

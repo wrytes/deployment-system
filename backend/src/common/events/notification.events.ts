@@ -55,7 +55,6 @@ export class EnvironmentMadePublicEvent extends NotificationEvent {
     userId: string,
     public readonly environmentId: string,
     public readonly environmentName: string,
-    public readonly publicDomain: string,
   ) {
     super(userId);
   }
@@ -71,6 +70,8 @@ export class DeploymentSuccessEvent extends NotificationEvent {
     public readonly image: string,
     public readonly tag: string,
     public readonly isGitDeployment: boolean,
+    public readonly virtualHost?: string,
+    public readonly virtualPort?: number,
   ) {
     super(userId);
   }

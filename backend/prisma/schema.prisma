@@ -76,7 +76,6 @@ model Environment {
   dockerNetworkId   String?             @map("docker_network_id")          // Docker's internal network ID
   status            EnvironmentStatus   @default(CREATING)
   isPublic          Boolean             @default(false) @map("is_public")
-  publicDomain      String?             @unique @map("public_domain")
   errorMessage      String?             @map("error_message")
   createdAt         DateTime            @default(now()) @map("created_at")
   updatedAt         DateTime            @updatedAt @map("updated_at")
@@ -110,6 +109,8 @@ model Deployment {
   ports           Json?                                    // [{container: 80, host: 8080, protocol: "tcp"}]
   envVars         Json?             @map("env_vars")       // {KEY: "value"}
   volumes         Json?                                    // [{name: "data", path: "/data"}]
+  virtualHost     String?           @map("virtual_host")   // Domain for public access (e.g., "api.example.com")
+  virtualPort     Int?              @map("virtual_port")   // Container port to expose (e.g., 80, 3000)
   status          DeploymentStatus  @default(PENDING)
   errorMessage    String?           @map("error_message")
   startedAt       DateTime?         @map("started_at")
@@ -122,6 +123,7 @@ model Deployment {
   @@index([environmentId])
   @@index([jobId])
   @@index([status])
+  @@index([virtualHost])
   @@map("deployments")
 }
 
