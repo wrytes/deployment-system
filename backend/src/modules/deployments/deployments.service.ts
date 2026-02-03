@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../core/database/prisma.service';
 import { ContainerService } from '../../integrations/docker/container.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
@@ -13,6 +14,10 @@ import {
   EnvironmentStatus,
 } from '@prisma/client';
 import { nanoid } from 'nanoid';
+import {
+  DeploymentSuccessEvent,
+  DeploymentFailedEvent,
+} from '../../common/events/notification.events';
 
 export interface CreateDeploymentDto {
   environmentId: string;
@@ -49,6 +54,7 @@ export class DeploymentsService {
     private readonly prisma: PrismaService,
     private readonly containerService: ContainerService,
     private readonly volumeService: VolumeService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createDeployment(userId: string, dto: CreateDeploymentDto) {
@@ -240,12 +246,32 @@ export class DeploymentsService {
         },
       });
 
+      // Emit deployment success event
+      this.eventEmitter.emit(
+        'deployment.success',
+        new DeploymentSuccessEvent(
+          deployment.environment.userId,
+          deploymentId,
+          deployment.environmentId,
+          deployment.environment.name,
+          deployment.image,
+          deployment.tag,
+          false, // isGitDeployment
+        ),
+      );
+
       this.logger.log(`Deployment ${deploymentId} completed successfully`);
     } catch (error) {
       this.logger.error(
         `Deployment ${deploymentId} failed: ${error.message}`,
         error.stack,
       );
+
+      // Get deployment details for event
+      const failedDeployment = await this.prisma.deployment.findUnique({
+        where: { id: deploymentId },
+        include: { environment: true },
+      });
 
       // Update status to FAILED
       await this.prisma.deployment.update({
@@ -256,6 +282,22 @@ export class DeploymentsService {
           completedAt: new Date(),
         },
       });
+
+      // Emit deployment failed event
+      if (failedDeployment) {
+        this.eventEmitter.emit(
+          'deployment.failed',
+          new DeploymentFailedEvent(
+            failedDeployment.environment.userId,
+            deploymentId,
+            failedDeployment.environmentId,
+            failedDeployment.environment.name,
+            failedDeployment.image,
+            error.message,
+            false, // isGitDeployment
+          ),
+        );
+      }
     }
   }
 
@@ -345,6 +387,75 @@ export class DeploymentsService {
       );
       throw error;
     }
+  }
+
+  async deleteDeployment(
+    userId: string,
+    deploymentId: string,
+    preserveVolumes = false,
+  ): Promise<{ message: string }> {
+    this.logger.log(`Deleting deployment ${deploymentId}`);
+
+    // Verify deployment exists and user owns it
+    const deployment = await this.prisma.deployment.findFirst({
+      where: {
+        id: deploymentId,
+        environment: { userId },
+      },
+      include: {
+        service: true,
+        environment: true,
+      },
+    });
+
+    if (!deployment) {
+      throw new NotFoundException('Deployment not found');
+    }
+
+    // Remove Docker service
+    if (deployment.service?.name) {
+      try {
+        await this.containerService.removeService(deployment.service.name);
+        this.logger.log(`Removed service ${deployment.service.name}`);
+      } catch (error) {
+        this.logger.warn(
+          `Failed to remove service ${deployment.service.name}: ${error.message}`,
+        );
+      }
+    }
+
+    // Delete volumes (unless preserveVolumes=true)
+    if (!preserveVolumes && deployment.volumes) {
+      const volumes = deployment.volumes as any as Array<{
+        name: string;
+        path: string;
+        readOnly?: boolean;
+      }>;
+
+      for (const volume of volumes) {
+        try {
+          await this.volumeService.deleteVolume(volume.name);
+          this.logger.log(`Deleted volume ${volume.name}`);
+        } catch (error) {
+          this.logger.warn(
+            `Failed to delete volume ${volume.name}: ${error.message}`,
+          );
+        }
+      }
+    }
+
+    // Hard delete from database (cascade automatically deletes Service record)
+    await this.prisma.deployment.delete({
+      where: { id: deploymentId },
+    });
+
+    this.logger.log(`Deployment ${deploymentId} deleted successfully`);
+
+    return {
+      message: preserveVolumes
+        ? 'Deployment deleted successfully (volumes preserved)'
+        : 'Deployment deleted successfully',
+    };
   }
 
   async createDeploymentFromGit(
@@ -547,6 +658,20 @@ export class DeploymentsService {
         },
       });
 
+      // Emit deployment success event
+      this.eventEmitter.emit(
+        'deployment.success',
+        new DeploymentSuccessEvent(
+          deployment.environment.userId,
+          deploymentId,
+          deployment.environmentId,
+          deployment.environment.name,
+          deployment.image,
+          deployment.tag || 'latest',
+          true, // isGitDeployment
+        ),
+      );
+
       this.logger.log(
         `Deployment ${deploymentId} from Git completed successfully`,
       );
@@ -555,6 +680,12 @@ export class DeploymentsService {
         `Deployment ${deploymentId} from Git failed: ${error.message}`,
         error.stack,
       );
+
+      // Get deployment details for event
+      const failedDeployment = await this.prisma.deployment.findUnique({
+        where: { id: deploymentId },
+        include: { environment: true },
+      });
 
       // Update status to FAILED
       await this.prisma.deployment.update({
@@ -565,6 +696,22 @@ export class DeploymentsService {
           completedAt: new Date(),
         },
       });
+
+      // Emit deployment failed event
+      if (failedDeployment) {
+        this.eventEmitter.emit(
+          'deployment.failed',
+          new DeploymentFailedEvent(
+            failedDeployment.environment.userId,
+            deploymentId,
+            failedDeployment.environmentId,
+            failedDeployment.environment.name,
+            failedDeployment.image,
+            error.message,
+            true, // isGitDeployment
+          ),
+        );
+      }
     }
   }
 

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { LoggerModule } from 'nestjs-pino';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 
 // Config
 import appConfig from './config/app.config';
@@ -25,6 +26,9 @@ import { AuthModule } from './modules/auth/auth.module';
 import { EnvironmentsModule } from './modules/environments/environments.module';
 import { DeploymentsModule } from './modules/deployments/deployments.module';
 import { LogsModule } from './modules/logs/logs.module';
+
+// Common modules
+import { EventsModule } from './common/events/events.module';
 
 // App controller and service
 import { AppController } from './app.controller';
@@ -76,6 +80,14 @@ import { AppService } from './app.service';
       },
     ]),
 
+    // Event system
+    EventEmitterModule.forRoot({
+      wildcard: false,
+      delimiter: '.',
+      maxListeners: 10,
+      verboseMemoryLeak: true,
+    }),
+
     // Core modules
     DatabaseModule,
     HealthModule,
@@ -89,6 +101,9 @@ import { AppService } from './app.service';
     EnvironmentsModule,
     DeploymentsModule,
     LogsModule,
+
+    // Common modules
+    EventsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

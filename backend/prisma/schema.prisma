@@ -17,6 +17,13 @@ model User {
   createdAt       DateTime      @default(now()) @map("created_at")
   updatedAt       DateTime      @updatedAt @map("updated_at")
 
+  // Notification preferences
+  notifyEnvironmentActive      Boolean  @default(true) @map("notify_environment_active")
+  notifyEnvironmentDeleted     Boolean  @default(true) @map("notify_environment_deleted")
+  notifyEnvironmentMadePublic  Boolean  @default(true) @map("notify_environment_made_public")
+  notifyDeploymentSuccess      Boolean  @default(true) @map("notify_deployment_success")
+  notifyErrors                 Boolean  @default(true) @map("notify_errors")
+
   apiKeys         ApiKey[]
   environments    Environment[]
   magicLinks      MagicLink[]

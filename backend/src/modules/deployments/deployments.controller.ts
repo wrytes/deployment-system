@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -464,5 +465,62 @@ export class DeploymentsController {
       tailNum,
     );
     return { logs };
+  }
+
+  @Delete(':id')
+  @RequireScopes(ApiKeyScope.DEPLOYMENTS_WRITE)
+  @ApiOperation({
+    summary: 'Delete deployment',
+    description:
+      'Delete a deployment and clean up associated Docker resources. ' +
+      'By default, volumes are deleted along with the service. ' +
+      'Use preserveVolumes=true to keep volumes for data retention. ' +
+      'This is a hard delete - the deployment record is removed from the database. ' +
+      '\n\n**Required scope**: `DEPLOYMENTS_WRITE`',
+  })
+  @ApiParam({
+    name: 'id',
+    description: 'Deployment ID to delete',
+    example: 'clx456def789ghi',
+  })
+  @ApiQuery({
+    name: 'preserveVolumes',
+    required: false,
+    description: 'Set to true to preserve volumes (default: false)',
+    example: false,
+    schema: { type: 'boolean', default: false },
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Deployment deleted successfully',
+    schema: {
+      example: {
+        message: 'Deployment deleted successfully',
+      },
+    },
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Unauthorized',
+  })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden - Missing DEPLOYMENTS_WRITE scope',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'Deployment not found',
+  })
+  async deleteDeployment(
+    @CurrentUser() user: User,
+    @Param('id') deploymentId: string,
+    @Query('preserveVolumes') preserveVolumes?: string,
+  ) {
+    const preserveVolumesFlag = preserveVolumes === 'true';
+    return this.deploymentsService.deleteDeployment(
+      user.id,
+      deploymentId,
+      preserveVolumesFlag,
+    );
   }
 }

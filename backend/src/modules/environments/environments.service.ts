@@ -5,6 +5,7 @@ import {
   ConflictException,
   BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../../core/database/prisma.service';
 import { NetworkService } from '../../integrations/docker/network.service';
 import { ContainerService } from '../../integrations/docker/container.service';
@@ -14,6 +15,12 @@ import {
   DeploymentStatus,
   ServiceStatus,
 } from '@prisma/client';
+import {
+  EnvironmentActiveEvent,
+  EnvironmentErrorEvent,
+  EnvironmentDeletedEvent,
+  EnvironmentMadePublicEvent,
+} from '../../common/events/notification.events';
 
 @Injectable()
 export class EnvironmentsService {
@@ -24,6 +31,7 @@ export class EnvironmentsService {
     private readonly networkService: NetworkService,
     private readonly containerService: ContainerService,
     private readonly volumeService: VolumeService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async createEnvironment(userId: string, name: string) {
@@ -37,8 +45,19 @@ export class EnvironmentsService {
     });
 
     if (existing) {
-      throw new ConflictException(
-        `Environment with name "${name}" already exists`,
+      if (existing.status !== EnvironmentStatus.DELETED) {
+        throw new ConflictException(
+          `Environment with name "${name}" already exists`,
+        );
+      }
+
+      // Hard delete the old DELETED environment to allow name reuse
+      await this.prisma.environment.delete({
+        where: { id: existing.id },
+      });
+
+      this.logger.log(
+        `Removed old deleted environment "${name}" to allow name reuse`,
       );
     }
 
@@ -82,6 +101,17 @@ export class EnvironmentsService {
         },
       });
 
+      // Emit environment active event
+      this.eventEmitter.emit(
+        'environment.active',
+        new EnvironmentActiveEvent(
+          userId,
+          updatedEnvironment.id,
+          name,
+          overlayNetworkId,
+        ),
+      );
+
       this.logger.log(
         `Environment "${name}" created successfully with network ${overlayNetworkId}`,
       );
@@ -96,6 +126,18 @@ export class EnvironmentsService {
           errorMessage: error.message,
         },
       });
+
+      // Emit environment error event
+      this.eventEmitter.emit(
+        'environment.error',
+        new EnvironmentErrorEvent(
+          userId,
+          environment.id,
+          name,
+          error.message,
+          'creation',
+        ),
+      );
 
       this.logger.error(
         `Failed to create environment "${name}": ${error.message}`,
@@ -215,6 +257,12 @@ export class EnvironmentsService {
         data: { status: EnvironmentStatus.DELETED },
       });
 
+      // Emit environment deleted event
+      this.eventEmitter.emit(
+        'environment.deleted',
+        new EnvironmentDeletedEvent(userId, environmentId, environment.name),
+      );
+
       this.logger.log(`Environment ${environmentId} deleted successfully`);
 
       return { message: 'Environment deleted successfully' };
@@ -227,6 +275,18 @@ export class EnvironmentsService {
           errorMessage: `Deletion failed: ${error.message}`,
         },
       });
+
+      // Emit environment error event
+      this.eventEmitter.emit(
+        'environment.error',
+        new EnvironmentErrorEvent(
+          userId,
+          environmentId,
+          environment.name,
+          error.message,
+          'deletion',
+        ),
+      );
 
       this.logger.error(
         `Failed to delete environment ${environmentId}: ${error.message}`,
@@ -285,11 +345,34 @@ export class EnvironmentsService {
       // nginx-proxy will auto-detect them via docker socket
       await this.updateDeploymentsForPublicAccess(environmentId, domain);
 
+      // Emit environment made public event
+      this.eventEmitter.emit(
+        'environment.made_public',
+        new EnvironmentMadePublicEvent(
+          userId,
+          environmentId,
+          environment.name,
+          domain,
+        ),
+      );
+
       this.logger.log(
         `Environment ${environmentId} is now public at ${domain}`,
       );
       return updated;
     } catch (error) {
+      // Emit environment error event
+      this.eventEmitter.emit(
+        'environment.error',
+        new EnvironmentErrorEvent(
+          userId,
+          environmentId,
+          environment.name,
+          error.message,
+          'public_config',
+        ),
+      );
+
       this.logger.error(`Failed to make environment public: ${error.message}`);
       throw error;
     }
