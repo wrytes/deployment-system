@@ -46,7 +46,9 @@ export class ContainerService {
           stream,
           (err: any, output: any) => {
             if (err) {
-              this.logger.error(`Failed to pull image ${fullImage}: ${err.message}`);
+              this.logger.error(
+                `Failed to pull image ${fullImage}: ${err.message}`,
+              );
               return reject(err);
             }
             this.logger.log(`Image pulled successfully: ${fullImage}`);
@@ -54,7 +56,9 @@ export class ContainerService {
           },
           (event) => {
             if (event.status) {
-              this.logger.debug(`Pull progress: ${event.status} ${event.id || ''}`);
+              this.logger.debug(
+                `Pull progress: ${event.status} ${event.id || ''}`,
+              );
             }
           },
         );
@@ -172,7 +176,9 @@ export class ContainerService {
 
       return service;
     } catch (error) {
-      this.logger.error(`Failed to create service ${config.name}: ${error.message}`);
+      this.logger.error(
+        `Failed to create service ${config.name}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -223,15 +229,14 @@ export class ContainerService {
         this.logger.warn(`Service not found: ${nameOrId}`);
         return;
       }
-      this.logger.error(`Failed to remove service ${nameOrId}: ${error.message}`);
+      this.logger.error(
+        `Failed to remove service ${nameOrId}: ${error.message}`,
+      );
       throw error;
     }
   }
 
-  async getServiceLogs(
-    nameOrId: string,
-    tail = 100,
-  ): Promise<string> {
+  async getServiceLogs(nameOrId: string, tail = 100): Promise<string> {
     try {
       const service = this.docker.getService(nameOrId);
       const logs = await service.logs({
@@ -243,7 +248,9 @@ export class ContainerService {
 
       return logs.toString();
     } catch (error) {
-      this.logger.error(`Failed to get logs for service ${nameOrId}: ${error.message}`);
+      this.logger.error(
+        `Failed to get logs for service ${nameOrId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -373,7 +380,10 @@ export class ContainerService {
 
                   if (event.error || event.errorDetail) {
                     buildFailed = true;
-                    errorMessage = event.error || event.errorDetail.message || 'Build failed';
+                    errorMessage =
+                      event.error ||
+                      event.errorDetail.message ||
+                      'Build failed';
                     this.logger.error(`Build error: ${errorMessage}`);
                   }
                 } catch (parseError) {
@@ -391,11 +401,17 @@ export class ContainerService {
             }
 
             if (!buildSucceeded) {
-              return reject(new Error('Build did not complete - no "Successfully built" message'));
+              return reject(
+                new Error(
+                  'Build did not complete - no "Successfully built" message',
+                ),
+              );
             }
 
             if (!imageTagged) {
-              this.logger.warn(`Image built but not tagged - this should not happen with t parameter`);
+              this.logger.warn(
+                `Image built but not tagged - this should not happen with t parameter`,
+              );
             }
 
             this.logger.log(`Image built and tagged: ${imageName}`);
@@ -458,13 +474,14 @@ export class ContainerService {
     dockerfile += `USER appuser\n\n`;
 
     // Install and build
-    const buildCmd = installCommand && buildCommand
-      ? `${installCommand} && ${buildCommand}`
-      : buildCommand
-      ? buildCommand
-      : installCommand
-      ? installCommand
-      : 'yarn install && yarn run build';
+    const buildCmd =
+      installCommand && buildCommand
+        ? `${installCommand} && ${buildCommand}`
+        : buildCommand
+          ? buildCommand
+          : installCommand
+            ? installCommand
+            : 'yarn install && yarn run build';
 
     dockerfile += `# Install dependencies and build\n`;
     dockerfile += `RUN ${buildCmd}\n\n`;
@@ -474,7 +491,10 @@ export class ContainerService {
 
     // Start command
     const cmdArray = startCommand
-      ? startCommand.split(' ').map(s => `"${s}"`).join(', ')
+      ? startCommand
+          .split(' ')
+          .map((s) => `"${s}"`)
+          .join(', ')
       : '"yarn", "start"';
 
     dockerfile += `# Start application\n`;

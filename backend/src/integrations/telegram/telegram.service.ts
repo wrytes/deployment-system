@@ -42,7 +42,8 @@ export class TelegramService {
     environmentName: string,
     status: string,
   ): Promise<void> {
-    const emoji = status === 'RUNNING' ? '✅' : status === 'FAILED' ? '❌' : '⏳';
+    const emoji =
+      status === 'RUNNING' ? '✅' : status === 'FAILED' ? '❌' : '⏳';
     const message = `${emoji} *Deployment Update*\n\nEnvironment: \`${environmentName}\`\nStatus: *${status}*`;
     await this.sendMarkdownMessage(chatId, message);
   }

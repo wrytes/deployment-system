@@ -51,17 +51,17 @@ async function bootstrap() {
     .setTitle('Docker Swarm Deployment Platform API')
     .setDescription(
       'REST API for managing isolated Docker Swarm deployments with automatic SSL.\n\n' +
-      '## Authentication\n' +
-      'All endpoints (except /auth/verify) require API key authentication.\n' +
-      'Include the `X-API-Key` header with format: `rw_prod_{keyId}.{secret}`\n\n' +
-      '## Getting Started\n' +
-      '1. Use Telegram bot `/api_create` to generate magic link\n' +
-      '2. Visit magic link to retrieve API key\n' +
-      '3. Use API key in `X-API-Key` header for all requests\n\n' +
-      '## Architecture\n' +
-      '- **Environments**: Isolated overlay networks for container groups\n' +
-      '- **Deployments**: Container deployments within environments\n' +
-      '- **Public Access**: Automatic SSL via Let\'s Encrypt + Nginx'
+        '## Authentication\n' +
+        'All endpoints (except /auth/verify) require API key authentication.\n' +
+        'Include the `X-API-Key` header with format: `rw_prod_{keyId}.{secret}`\n\n' +
+        '## Getting Started\n' +
+        '1. Use Telegram bot `/api_create` to generate magic link\n' +
+        '2. Visit magic link to retrieve API key\n' +
+        '3. Use API key in `X-API-Key` header for all requests\n\n' +
+        '## Architecture\n' +
+        '- **Environments**: Isolated overlay networks for container groups\n' +
+        '- **Deployments**: Container deployments within environments\n' +
+        "- **Public Access**: Automatic SSL via Let's Encrypt + Nginx",
     )
     .setVersion('1.0.0')
     .addApiKey(
@@ -74,7 +74,10 @@ async function bootstrap() {
       'api-key',
     )
     .addTag('Authentication', 'API key management and verification')
-    .addTag('Environments', 'Isolated deployment environments with overlay networks')
+    .addTag(
+      'Environments',
+      'Isolated deployment environments with overlay networks',
+    )
     .addTag('Deployments', 'Container deployments and status tracking')
     .addTag('Health', 'System health monitoring')
     .addTag('Root', 'Base API endpoints')

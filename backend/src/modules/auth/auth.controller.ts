@@ -81,7 +81,11 @@ export class AuthController {
         keys: [
           {
             keyId: 'abcd1234efgh5678',
-            scopes: ['ENVIRONMENTS_READ', 'ENVIRONMENTS_WRITE', 'DEPLOYMENTS_READ'],
+            scopes: [
+              'ENVIRONMENTS_READ',
+              'ENVIRONMENTS_WRITE',
+              'DEPLOYMENTS_READ',
+            ],
             expiresAt: null,
             lastUsedAt: '2026-02-03T10:30:00.000Z',
             createdAt: '2026-02-01T08:00:00.000Z',
@@ -138,10 +142,7 @@ export class AuthController {
     status: 404,
     description: 'API key not found',
   })
-  async revokeApiKey(
-    @CurrentUser() user: User,
-    @Body('keyId') keyId: string,
-  ) {
+  async revokeApiKey(@CurrentUser() user: User, @Body('keyId') keyId: string) {
     await this.authService.revokeApiKey(user.id, keyId);
     return { message: 'API key revoked successfully' };
   }

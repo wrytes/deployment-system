@@ -24,7 +24,9 @@ export class ApiKeyGuard implements CanActivate {
 
     // Parse API key format: rw_prod_{keyId}.{secret}
     // nanoid can include: A-Z, a-z, 0-9, _ and -
-    const keyMatch = apiKeyHeader.match(/^rw_prod_([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_-]+)$/);
+    const keyMatch = apiKeyHeader.match(
+      /^rw_prod_([a-zA-Z0-9_-]+)\.([a-zA-Z0-9_-]+)$/,
+    );
 
     if (!keyMatch) {
       throw new UnauthorizedException('Invalid API key format');

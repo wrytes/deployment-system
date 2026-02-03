@@ -52,7 +52,9 @@ export class NetworkService {
         this.logger.warn(`Network not found: ${nameOrId}`);
         return;
       }
-      this.logger.error(`Failed to delete network ${nameOrId}: ${error.message}`);
+      this.logger.error(
+        `Failed to delete network ${nameOrId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -145,7 +147,9 @@ export class NetworkService {
     }
   }
 
-  async getNetwork(nameOrId: string): Promise<Docker.NetworkInspectInfo | null> {
+  async getNetwork(
+    nameOrId: string,
+  ): Promise<Docker.NetworkInspectInfo | null> {
     try {
       const network = this.docker.getNetwork(nameOrId);
       return await network.inspect();

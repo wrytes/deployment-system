@@ -48,7 +48,8 @@ export class EnvironmentsController {
       properties: {
         name: {
           type: 'string',
-          description: 'Environment name (alphanumeric, hyphens, underscores only)',
+          description:
+            'Environment name (alphanumeric, hyphens, underscores only)',
           example: 'my-app-prod',
           pattern: '^[a-zA-Z0-9_-]+$',
         },
@@ -238,8 +239,8 @@ export class EnvironmentsController {
     summary: 'Enable public access',
     description:
       'Make an environment publicly accessible via HTTPS with automatic SSL. ' +
-      'This configures Nginx reverse proxy and requests Let\'s Encrypt certificate. ' +
-      'Domain must point to this server\'s IP address. ' +
+      "This configures Nginx reverse proxy and requests Let's Encrypt certificate. " +
+      "Domain must point to this server's IP address. " +
       '\n\n**Required scope**: `ENVIRONMENTS_WRITE`',
   })
   @ApiParam({
@@ -254,7 +255,8 @@ export class EnvironmentsController {
       properties: {
         domain: {
           type: 'string',
-          description: 'Domain name for public access (must point to this server)',
+          description:
+            'Domain name for public access (must point to this server)',
           example: 'my-app.example.com',
         },
       },

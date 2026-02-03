@@ -55,12 +55,12 @@ export class VolumeService {
         return;
       }
       if (error.statusCode === 409) {
-        this.logger.warn(
-          `Volume is in use and cannot be deleted: ${nameOrId}`,
-        );
+        this.logger.warn(`Volume is in use and cannot be deleted: ${nameOrId}`);
         return;
       }
-      this.logger.error(`Failed to delete volume ${nameOrId}: ${error.message}`);
+      this.logger.error(
+        `Failed to delete volume ${nameOrId}: ${error.message}`,
+      );
       throw error;
     }
   }
@@ -74,7 +74,9 @@ export class VolumeService {
       };
 
       if (environmentId) {
-        filters.label.push(`com.deployment-platform.environment=${environmentId}`);
+        filters.label.push(
+          `com.deployment-platform.environment=${environmentId}`,
+        );
       }
 
       const { Volumes } = await this.docker.listVolumes({ filters });

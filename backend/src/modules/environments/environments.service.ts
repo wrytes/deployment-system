@@ -9,7 +9,11 @@ import { PrismaService } from '../../core/database/prisma.service';
 import { NetworkService } from '../../integrations/docker/network.service';
 import { ContainerService } from '../../integrations/docker/container.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
-import { EnvironmentStatus, DeploymentStatus, ServiceStatus } from '@prisma/client';
+import {
+  EnvironmentStatus,
+  DeploymentStatus,
+  ServiceStatus,
+} from '@prisma/client';
 
 @Injectable()
 export class EnvironmentsService {
@@ -231,11 +235,7 @@ export class EnvironmentsService {
     }
   }
 
-  async makePublic(
-    userId: string,
-    environmentId: string,
-    domain: string,
-  ) {
+  async makePublic(userId: string, environmentId: string, domain: string) {
     this.logger.log(
       `Making environment ${environmentId} public with domain ${domain}`,
     );
@@ -268,7 +268,8 @@ export class EnvironmentsService {
 
     try {
       // Attach nginx-proxy to this environment's overlay network for isolation
-      const nginxContainerName = process.env.NGINX_CONTAINER_NAME || 'nginx_proxy';
+      const nginxContainerName =
+        process.env.NGINX_CONTAINER_NAME || 'nginx_proxy';
       await this.networkService.attachContainerToNetwork(
         nginxContainerName,
         environment.overlayNetworkId,
@@ -284,7 +285,9 @@ export class EnvironmentsService {
       // nginx-proxy will auto-detect them via docker socket
       await this.updateDeploymentsForPublicAccess(environmentId, domain);
 
-      this.logger.log(`Environment ${environmentId} is now public at ${domain}`);
+      this.logger.log(
+        `Environment ${environmentId} is now public at ${domain}`,
+      );
       return updated;
     } catch (error) {
       this.logger.error(`Failed to make environment public: ${error.message}`);
@@ -292,7 +295,10 @@ export class EnvironmentsService {
     }
   }
 
-  private async updateDeploymentsForPublicAccess(environmentId: string, domain: string): Promise<void> {
+  private async updateDeploymentsForPublicAccess(
+    environmentId: string,
+    domain: string,
+  ): Promise<void> {
     const deployments = await this.prisma.deployment.findMany({
       where: { environmentId, status: DeploymentStatus.RUNNING },
       include: { service: true },
@@ -301,16 +307,24 @@ export class EnvironmentsService {
     // Update running services to add proxy env vars
     // nginx-proxy watches docker socket and will auto-configure
     for (const deployment of deployments) {
-      if (deployment.service?.name && deployment.service.status === ServiceStatus.RUNNING) {
+      if (
+        deployment.service?.name &&
+        deployment.service.status === ServiceStatus.RUNNING
+      ) {
         await this.addProxyEnvVarsToService(deployment.service.name, domain);
       }
     }
   }
 
-  private async addProxyEnvVarsToService(serviceName: string, domain: string): Promise<void> {
+  private async addProxyEnvVarsToService(
+    serviceName: string,
+    domain: string,
+  ): Promise<void> {
     const service = await this.containerService.getService(serviceName);
     if (!service) {
-      this.logger.warn(`Service ${serviceName} not found, skipping proxy env vars update`);
+      this.logger.warn(
+        `Service ${serviceName} not found, skipping proxy env vars update`,
+      );
       return;
     }
 
@@ -325,7 +339,10 @@ export class EnvironmentsService {
 
     // Add proxy env vars if not already present
     const envVarsToAdd = proxyEnvVars.filter(
-      (envVar: string) => !currentEnv.some((existing: string) => existing.startsWith(envVar.split('=')[0] + '='))
+      (envVar: string) =>
+        !currentEnv.some((existing: string) =>
+          existing.startsWith(envVar.split('=')[0] + '='),
+        ),
     );
 
     if (envVarsToAdd.length > 0) {

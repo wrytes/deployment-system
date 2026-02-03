@@ -13,7 +13,9 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
       imports: [ConfigModule],
       useFactory: async (configService: ConfigService) => {
         const botToken = configService.get<string>('telegram.botToken');
-        const webhookDomain = configService.get<string>('telegram.webhookDomain');
+        const webhookDomain = configService.get<string>(
+          'telegram.webhookDomain',
+        );
         const webhookPath = configService.get<string>('telegram.webhookPath');
 
         if (!botToken) {
@@ -43,7 +45,10 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
           };
         }
 
-        console.log('Telegram bot configured with token:', botToken.substring(0, 10) + '...');
+        console.log(
+          'Telegram bot configured with token:',
+          botToken.substring(0, 10) + '...',
+        );
 
         return config;
       },

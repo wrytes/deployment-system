@@ -7,7 +7,11 @@ import {
 import { PrismaService } from '../../core/database/prisma.service';
 import { ContainerService } from '../../integrations/docker/container.service';
 import { VolumeService } from '../../integrations/docker/volume.service';
-import { DeploymentStatus, ServiceStatus, EnvironmentStatus } from '@prisma/client';
+import {
+  DeploymentStatus,
+  ServiceStatus,
+  EnvironmentStatus,
+} from '@prisma/client';
 import { nanoid } from 'nanoid';
 
 export interface CreateDeploymentDto {
@@ -48,9 +52,7 @@ export class DeploymentsService {
   ) {}
 
   async createDeployment(userId: string, dto: CreateDeploymentDto) {
-    this.logger.log(
-      `Creating deployment for environment ${dto.environmentId}`,
-    );
+    this.logger.log(`Creating deployment for environment ${dto.environmentId}`);
 
     // Verify environment exists and belongs to user
     const environment = await this.prisma.environment.findFirst({
@@ -89,14 +91,13 @@ export class DeploymentsService {
     });
 
     // Start async deployment process (fire and forget)
-    this.processDeployment(
-      deployment.id,
-      environment.overlayNetworkId,
-    ).catch((error) => {
-      this.logger.error(
-        `Deployment processing failed for ${deployment.id}: ${error.message}`,
-      );
-    });
+    this.processDeployment(deployment.id, environment.overlayNetworkId).catch(
+      (error) => {
+        this.logger.error(
+          `Deployment processing failed for ${deployment.id}: ${error.message}`,
+        );
+      },
+    );
 
     return {
       jobId: deployment.jobId,
@@ -132,13 +133,8 @@ export class DeploymentsService {
       });
 
       // Pull image
-      this.logger.log(
-        `Pulling image ${deployment.image}:${deployment.tag}`,
-      );
-      await this.containerService.pullImage(
-        deployment.image,
-        deployment.tag,
-      );
+      this.logger.log(`Pulling image ${deployment.image}:${deployment.tag}`);
+      await this.containerService.pullImage(deployment.image, deployment.tag);
 
       // Step 2: Update status to CREATING_VOLUMES
       await this.prisma.deployment.update({
@@ -196,7 +192,10 @@ export class DeploymentsService {
 
       // Check if environment is public and inject proxy env vars
       // nginx-proxy will auto-detect these via docker socket
-      if (deployment.environment.isPublic && deployment.environment.publicDomain) {
+      if (
+        deployment.environment.isPublic &&
+        deployment.environment.publicDomain
+      ) {
         const proxyEnvVars = this.getProxyEnvironmentVariables(
           deployment.environment.publicDomain,
           serviceName,
@@ -348,7 +347,10 @@ export class DeploymentsService {
     }
   }
 
-  async createDeploymentFromGit(userId: string, dto: CreateDeploymentFromGitDto) {
+  async createDeploymentFromGit(
+    userId: string,
+    dto: CreateDeploymentFromGitDto,
+  ) {
     this.logger.log(
       `Creating deployment from Git for environment ${dto.environmentId}`,
     );
@@ -371,7 +373,8 @@ export class DeploymentsService {
 
     // Generate job ID and image name
     const jobId = nanoid(this.JOB_ID_LENGTH);
-    const imageName = `deployment-${environment.name}-${Date.now()}`.toLowerCase();
+    const imageName =
+      `deployment-${environment.name}-${Date.now()}`.toLowerCase();
     const tag = dto.branch || 'latest';
 
     // Create deployment record
@@ -402,9 +405,7 @@ export class DeploymentsService {
       dto.buildCommand,
       dto.startCommand,
     ).catch((error) => {
-      this.logger.error(
-        `Deployment ${deployment.id} failed: ${error.message}`,
-      );
+      this.logger.error(`Deployment ${deployment.id} failed: ${error.message}`);
     });
 
     return {
@@ -495,11 +496,14 @@ export class DeploymentsService {
       }
 
       // Prepare environment variables
-      const envVars = deployment.envVars as Record<string, string> || {};
+      const envVars = (deployment.envVars as Record<string, string>) || {};
 
       // Check if environment is public and inject proxy env vars
       // nginx-proxy will auto-detect these via docker socket
-      if (deployment.environment.isPublic && deployment.environment.publicDomain) {
+      if (
+        deployment.environment.isPublic &&
+        deployment.environment.publicDomain
+      ) {
         const proxyEnvVars = this.getProxyEnvironmentVariables(
           deployment.environment.publicDomain,
           serviceName,
@@ -543,7 +547,9 @@ export class DeploymentsService {
         },
       });
 
-      this.logger.log(`Deployment ${deploymentId} from Git completed successfully`);
+      this.logger.log(
+        `Deployment ${deploymentId} from Git completed successfully`,
+      );
     } catch (error) {
       this.logger.error(
         `Deployment ${deploymentId} from Git failed: ${error.message}`,
@@ -565,12 +571,17 @@ export class DeploymentsService {
   private getProxyEnvironmentVariables(
     domain: string,
     serviceName: string,
-    ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>,
+    ports?: Array<{
+      container: number;
+      host?: number;
+      protocol?: 'tcp' | 'udp';
+    }>,
   ): Record<string, string> {
     const proxyEnvVars: Record<string, string> = {
       VIRTUAL_HOST: domain,
       LETSENCRYPT_HOST: domain,
-      LETSENCRYPT_EMAIL: process.env.LETSENCRYPT_EMAIL || 'your-email@example.com',
+      LETSENCRYPT_EMAIL:
+        process.env.LETSENCRYPT_EMAIL || 'your-email@example.com',
     };
 
     if (ports && ports.length > 0) {

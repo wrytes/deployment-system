@@ -25,9 +25,7 @@ export class DockerService implements OnModuleInit {
           'Docker Swarm is not initialized. Call initializeSwarm() to set up.',
         );
       } else {
-        this.logger.log(
-          `Docker Swarm active - Node ID: ${info.Swarm.NodeID}`,
-        );
+        this.logger.log(`Docker Swarm active - Node ID: ${info.Swarm.NodeID}`);
       }
     } catch (error) {
       this.logger.error(
@@ -41,7 +39,9 @@ export class DockerService implements OnModuleInit {
   async initializeSwarm(advertiseAddr?: string): Promise<void> {
     try {
       await this.docker.swarmInit({
-        AdvertiseAddr: advertiseAddr || this.configService.get<string>('docker.swarmAdvertiseAddr'),
+        AdvertiseAddr:
+          advertiseAddr ||
+          this.configService.get<string>('docker.swarmAdvertiseAddr'),
         ListenAddr: '0.0.0.0:2377',
       });
       this.logger.log('Docker Swarm initialized successfully');

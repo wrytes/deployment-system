@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../core/database/prisma.service';
 import { ApiKeyScope } from '@prisma/client';
@@ -31,7 +36,9 @@ export class AuthService {
 
     const token = nanoid(this.MAGIC_LINK_TOKEN_LENGTH);
     const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + this.MAGIC_LINK_EXPIRY_MINUTES);
+    expiresAt.setMinutes(
+      expiresAt.getMinutes() + this.MAGIC_LINK_EXPIRY_MINUTES,
+    );
 
     await this.prisma.magicLink.create({
       data: {
@@ -42,12 +49,16 @@ export class AuthService {
       },
     });
 
-    this.logger.log(`Magic link created for user ${userId}, expires at ${expiresAt}`);
+    this.logger.log(
+      `Magic link created for user ${userId}, expires at ${expiresAt}`,
+    );
 
     return { token, expiresAt };
   }
 
-  async verifyMagicLink(token: string): Promise<{ apiKey: string; expiresAt: Date | null }> {
+  async verifyMagicLink(
+    token: string,
+  ): Promise<{ apiKey: string; expiresAt: Date | null }> {
     this.logger.log('Verifying magic link');
 
     const magicLink = await this.prisma.magicLink.findUnique({
@@ -79,7 +90,9 @@ export class AuthService {
       magicLink.scopes,
     );
 
-    this.logger.log(`Magic link verified and API key created for user ${magicLink.userId}`);
+    this.logger.log(
+      `Magic link verified and API key created for user ${magicLink.userId}`,
+    );
 
     return { apiKey, expiresAt };
   }
