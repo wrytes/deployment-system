@@ -44,12 +44,12 @@ services:
 
     backend:
         build:
-            context: ./backend
+            context: .
             dockerfile: Dockerfile
         container_name: deployment_platform_backend
         user: root
         env_file:
-            - ./backend/.env.production
+            - ./.env.production
         volumes:
             - /var/run/docker.sock:/var/run/docker.sock
         networks:
