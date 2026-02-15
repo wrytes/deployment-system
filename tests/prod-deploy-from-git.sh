@@ -79,7 +79,8 @@ DEPLOY_RESPONSE=$(curl -s -X POST ${PROD_URL}/deployments/from-git \
     \"startCommand\": \"yarn start\",
     \"replicas\": ${REPLICAS},
     \"ports\": [{
-      \"container\": ${VIRTUAL_PORT}
+      \"container\": ${VIRTUAL_PORT},
+      \"host\": ${VIRTUAL_PORT}
     }],
     \"envVars\": {
       \"NODE_ENV\": \"production\",
