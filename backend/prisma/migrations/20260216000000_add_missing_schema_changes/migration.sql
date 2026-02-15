@@ -12,16 +12,6 @@ BEGIN
         -- Rename the table
         ALTER TABLE "containers" RENAME TO "services";
 
-        -- Rename the enum if needed
-        DO $$ BEGIN
-            ALTER TYPE "ContainerStatus" RENAME TO "ServiceStatus";
-        EXCEPTION
-            WHEN duplicate_object THEN null;
-        END $$;
-
-        -- Update column names
-        ALTER TABLE "services" RENAME COLUMN "deployment_id" TO "deployment_id";
-
         -- Recreate indexes with new names
         DROP INDEX IF EXISTS "containers_docker_id_key";
         DROP INDEX IF EXISTS "containers_deployment_id_idx";
@@ -36,6 +26,15 @@ BEGIN
         ALTER TABLE "services" ADD CONSTRAINT "services_deployment_id_fkey"
             FOREIGN KEY ("deployment_id") REFERENCES "deployments"("id") ON DELETE CASCADE ON UPDATE CASCADE;
     END IF;
+END $$;
+
+-- Rename the enum (separate block to avoid nesting)
+DO $$
+BEGIN
+    ALTER TYPE "ContainerStatus" RENAME TO "ServiceStatus";
+EXCEPTION
+    WHEN duplicate_object THEN null;
+    WHEN undefined_object THEN null;
 END $$;
 
 -- Create DeploymentUpdateStrategy enum if not exists
