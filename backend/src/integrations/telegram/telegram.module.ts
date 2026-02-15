@@ -3,6 +3,7 @@ import { TelegrafModule } from 'nestjs-telegraf';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TelegramService } from './telegram.service';
 import { TelegramUpdate } from './telegram.update';
+import { TelegramController } from './telegram.controller';
 import { AuthModule } from '../../modules/auth/auth.module';
 import { EnvironmentsModule } from '../../modules/environments/environments.module';
 import { DeploymentsModule } from '../../modules/deployments/deployments.module';
@@ -30,14 +31,10 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
           token: botToken,
         };
 
-        // Use webhook in production, polling in development
+        // Use webhook in production (handled by TelegramController), polling in development
         if (webhookDomain && configService.get('app.isProduction')) {
-          config.launchOptions = {
-            webhook: {
-              domain: webhookDomain,
-              hookPath: webhookPath,
-            },
-          };
+          // Disable auto-launch - we handle webhooks manually via TelegramController
+          config.launchOptions = false;
         } else {
           // Enable polling for development
           config.launchOptions = {
@@ -58,6 +55,7 @@ import { DeploymentsModule } from '../../modules/deployments/deployments.module'
     EnvironmentsModule,
     DeploymentsModule,
   ],
+  controllers: [TelegramController],
   providers: [TelegramService, TelegramUpdate],
   exports: [TelegramService],
 })
