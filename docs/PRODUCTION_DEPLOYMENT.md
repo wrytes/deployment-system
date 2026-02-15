@@ -144,8 +144,8 @@ API_KEY_SECRET=<generate-random-32char-string>
 # Database
 POSTGRES_USER=postgres
 POSTGRES_PASSWORD=<secure-password>
-POSTGRES_DB=deployment_platform
-DATABASE_URL=postgresql://postgres:<password>@postgres:5432/deployment_platform?schema=public
+POSTGRES_DB=deployment_system
+DATABASE_URL=postgresql://postgres:<password>@postgres:5432/deployment_system?schema=public
 
 # Redis
 REDIS_HOST=redis
@@ -391,7 +391,7 @@ mkdir -p /opt/deployment-platform/backups
 
 # Backup database
 docker exec deployment_platform_postgres pg_dump \
-  -U postgres deployment_platform \
+  -U postgres deployment_system \
   > /opt/deployment-platform/backups/db-$(date +%Y%m%d-%H%M%S).sql
 
 # Compress backup
@@ -407,7 +407,7 @@ Add to crontab:
 crontab -e
 
 # Add daily backup at 2 AM
-0 2 * * * docker exec deployment_platform_postgres pg_dump -U postgres deployment_platform | gzip > /opt/deployment-platform/backups/db-$(date +\%Y\%m\%d).sql.gz
+0 2 * * * docker exec deployment_platform_postgres pg_dump -U postgres deployment_system | gzip > /opt/deployment-platform/backups/db-$(date +\%Y\%m\%d).sql.gz
 
 # Keep only last 7 days
 0 3 * * * find /opt/deployment-platform/backups -name "db-*.sql.gz" -mtime +7 -delete
@@ -455,7 +455,7 @@ docker cp backups/db-20260215.sql.gz deployment_platform_postgres:/tmp/
 
 # Restore
 docker exec deployment_platform_postgres bash -c \
-  "gunzip < /tmp/db-20260215.sql.gz | psql -U postgres deployment_platform"
+  "gunzip < /tmp/db-20260215.sql.gz | psql -U postgres deployment_system"
 ```
 
 **3. Restart services:**
@@ -494,7 +494,7 @@ cp /path/to/db-backup.sql.gz backups/
 ```bash
 docker cp backups/db-backup.sql.gz deployment_platform_postgres:/tmp/
 docker exec deployment_platform_postgres bash -c \
-  "gunzip < /tmp/db-backup.sql.gz | psql -U postgres deployment_platform"
+  "gunzip < /tmp/db-backup.sql.gz | psql -U postgres deployment_system"
 ```
 
 **6. Restart to trigger deployment recovery:**
@@ -544,7 +544,7 @@ grep DATABASE_URL .env
 **Test connection:**
 ```bash
 docker exec deployment_platform_postgres psql \
-  -U postgres -d deployment_platform -c "SELECT 1"
+  -U postgres -d deployment_system -c "SELECT 1"
 ```
 
 ### Deployment Recovery Fails
