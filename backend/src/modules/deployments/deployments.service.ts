@@ -249,14 +249,19 @@ export class DeploymentsService {
 
       const envVars = deployment.envVars as any as Record<string, string>;
 
-      // Inject proxy env vars if deployment has virtualHost
+      // Add nginx-proxy env vars if deployment has virtualHost
       if (deployment.virtualHost && deployment.virtualPort) {
-        const proxyEnvVars = this.getProxyEnvironmentVariables(
-          deployment.virtualHost,
-          deployment.virtualPort,
-        );
-        Object.assign(envVars || {}, proxyEnvVars);
+        envVars['VIRTUAL_HOST'] = deployment.virtualHost;
+        envVars['VIRTUAL_PORT'] = deployment.virtualPort.toString();
+        envVars['LETSENCRYPT_HOST'] = deployment.virtualHost;
       }
+
+      // Prepare service labels
+      const labels: Record<string, string> = {
+        'com.deployment-platform.environment': deployment.environmentId,
+        'com.deployment-platform.deployment': deploymentId,
+        'com.deployment-platform.managed': 'true',
+      };
 
       // Services stay on their environment's overlay network only
       // nginx-proxy attaches to the environment network for isolation
@@ -270,10 +275,7 @@ export class DeploymentsService {
         ports: ports,
         volumes: volumes,
         networks: [networkName],
-        labels: {
-          'com.deployment-platform.environment': deployment.environmentId,
-          'com.deployment-platform.deployment': deploymentId,
-        },
+        labels,
       });
 
       // Create service record
@@ -727,14 +729,20 @@ export class DeploymentsService {
       // Prepare environment variables
       const envVars = (deployment.envVars as Record<string, string>) || {};
 
-      // Inject proxy env vars if deployment has virtualHost
+      // Add nginx-proxy env vars if deployment has virtualHost
       if (deployment.virtualHost && deployment.virtualPort) {
-        const proxyEnvVars = this.getProxyEnvironmentVariables(
-          deployment.virtualHost,
-          deployment.virtualPort,
-        );
-        Object.assign(envVars, proxyEnvVars);
+        envVars['VIRTUAL_HOST'] = deployment.virtualHost;
+        envVars['VIRTUAL_PORT'] = deployment.virtualPort.toString();
+        envVars['LETSENCRYPT_HOST'] = deployment.virtualHost;
       }
+
+      // Prepare service labels
+      const labels: Record<string, string> = {
+        'com.deployment-platform.environment': deployment.environmentId,
+        'com.deployment-platform.deployment': deploymentId,
+        'com.deployment-platform.git-url': gitUrl,
+        'com.deployment-platform.managed': 'true',
+      };
 
       // Create service
       await this.containerService.createService({
@@ -746,11 +754,7 @@ export class DeploymentsService {
         ports: deployment.ports as any[],
         volumes: volumes,
         networks: [networkName],
-        labels: {
-          'com.deployment-platform.environment': deployment.environmentId,
-          'com.deployment-platform.deployment': deploymentId,
-          'com.deployment-platform.git-url': gitUrl,
-        },
+        labels,
       });
 
       // Create service record
@@ -828,17 +832,5 @@ export class DeploymentsService {
         );
       }
     }
-  }
-
-  private getProxyEnvironmentVariables(
-    virtualHost: string,
-    virtualPort: number,
-  ): Record<string, string> {
-    return {
-      VIRTUAL_HOST: virtualHost,
-      VIRTUAL_PORT: virtualPort.toString(),
-      LETSENCRYPT_HOST: virtualHost,
-      // LETSENCRYPT_EMAIL is configured globally
-    };
   }
 }
