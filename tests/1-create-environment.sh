@@ -14,10 +14,10 @@ if [ -z "$API_KEY" ]; then
   exit 1
 fi
 
-ENV_NAME="${ENV_NAME:-test-env}"
+ENV_NAME="${ENV_NAME:-test-env-2}"
 
 echo "=== Creating Environment: ${ENV_NAME} ==="
-curl -s -X POST http://localhost:3030/environments \
+curl -s -X POST https://deployment.wrytes.io/environments \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"${ENV_NAME}\"}" | python3 -m json.tool

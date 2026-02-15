@@ -13,7 +13,7 @@ if [ -z "$API_KEY" ]; then
 fi
 
 ENV_ID="${ENV_ID:-}"
-GIT_URL="${GIT_URL:-https://github.com/Frankencoin-ZCHF/frankencoin-dapp.git}"
+GIT_URL="${GIT_URL:-https://github.com/wrytes/3dotsinc-app.git}"
 BRANCH="${BRANCH:-main}"
 HOST_PORT="${HOST_PORT:-3001}"
 CONTAINER_PORT="${CONTAINER_PORT:-3000}"

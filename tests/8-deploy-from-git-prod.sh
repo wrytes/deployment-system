@@ -65,7 +65,7 @@ echo ""
 # Step 1: Deploy from Git
 echo -e "${BLUE}Step 1: Initiating Git deployment...${NC}"
 
-# Build deployment payload with labels included
+# Build deployment payload with virtualHost and virtualPort as top-level properties
 DEPLOY_RESPONSE=$(curl -s -X POST ${PROD_URL}/deployments/from-git \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
@@ -78,16 +78,14 @@ DEPLOY_RESPONSE=$(curl -s -X POST ${PROD_URL}/deployments/from-git \
     \"buildCommand\": \"yarn run build\",
     \"startCommand\": \"yarn start\",
     \"replicas\": ${REPLICAS},
+    \"virtualHost\": \"${VIRTUAL_HOST}\",
+    \"virtualPort\": ${VIRTUAL_PORT},
     \"ports\": [{
-      \"container\": ${VIRTUAL_PORT},
-      \"host\": ${VIRTUAL_PORT}
+      \"container\": ${VIRTUAL_PORT}
     }],
     \"envVars\": {
       \"NODE_ENV\": \"production\",
-      \"PORT\": \"${VIRTUAL_PORT}\",
-      \"VIRTUAL_HOST\": \"${VIRTUAL_HOST}\",
-      \"VIRTUAL_PORT\": \"${VIRTUAL_PORT}\",
-      \"LETSENCRYPT_HOST\": \"${LETSENCRYPT_HOST}\"
+      \"PORT\": \"${VIRTUAL_PORT}\"
     }
   }")
 

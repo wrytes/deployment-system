@@ -596,6 +596,10 @@ export class DeploymentsService {
         virtualHost: dto.virtualHost || null,
         virtualPort: dto.virtualPort || null,
         status: DeploymentStatus.PENDING,
+        // Git deployment metadata
+        gitUrl: dto.gitUrl,
+        gitBranch: dto.branch || 'main',
+        autoRebuild: false,
       },
     });
 
