@@ -22,7 +22,7 @@ API_KEY="${API_KEY:-}"
 ENV_ID="${ENV_ID:-}"
 GIT_URL="${GIT_URL:-https://github.com/wrytes/3dotsinc-app.git}"
 BRANCH="${BRANCH:-main}"
-DOMAIN="${DOMAIN:-}"  # Optional: subdomain for public access (e.g., test-app.wrytes.io)
+DOMAIN="${DOMAIN:-test.deployment.wrytes.io}"  # Public domain for HTTPS access
 VIRTUAL_HOST="${VIRTUAL_HOST:-${DOMAIN}}"  # nginx-proxy virtual host
 VIRTUAL_PORT="${VIRTUAL_PORT:-3000}"  # Port your app listens on
 LETSENCRYPT_HOST="${LETSENCRYPT_HOST:-${DOMAIN}}"  # Domain for SSL cert
@@ -38,17 +38,16 @@ fi
 
 if [ -z "$ENV_ID" ]; then
   echo -e "${RED}❌ Error: ENV_ID is required${NC}"
-  echo "Usage: ENV_ID=<environment-id> [DOMAIN=<subdomain>] ./tests/prod-deploy-from-git.sh"
+  echo "Usage: ENV_ID=<environment-id> ./tests/prod-deploy-from-git.sh"
   echo ""
   echo "Optional environment variables:"
-  echo "  DOMAIN=test-app.wrytes.io        - Deploy with public HTTPS domain"
+  echo "  DOMAIN=<domain>                  - Public HTTPS domain (default: test.deployment.wrytes.io)"
   echo "  GIT_URL=<repo-url>               - Git repository URL"
   echo "  BRANCH=<branch>                  - Git branch (default: main)"
   echo "  REPLICAS=<number>                - Number of replicas (default: 1)"
   echo "  VIRTUAL_HOST=<domain>            - nginx-proxy virtual host (default: DOMAIN)"
   echo "  VIRTUAL_PORT=<port>              - Container port (default: 3000)"
   echo "  LETSENCRYPT_HOST=<domain>        - SSL cert domain (default: DOMAIN)"
-  echo "  LETSENCRYPT_EMAIL=<email>        - Email for Let's Encrypt (default: admin@wrytes.io)"
   exit 1
 fi
 
@@ -57,15 +56,10 @@ echo "Environment: ${ENV_ID}"
 echo "Git URL: ${GIT_URL}"
 echo "Branch: ${BRANCH}"
 echo "Replicas: ${REPLICAS}"
-if [ -n "$DOMAIN" ]; then
-  echo -e "${GREEN}Public Domain: ${DOMAIN}${NC}"
-  echo "Virtual Host: ${VIRTUAL_HOST}"
-  echo "Virtual Port: ${VIRTUAL_PORT}"
-  echo "Let's Encrypt Host: ${LETSENCRYPT_HOST}"
-  echo "Let's Encrypt Email: ${LETSENCRYPT_EMAIL}"
-else
-  echo -e "${YELLOW}No domain - internal deployment only${NC}"
-fi
+echo -e "${GREEN}Public Domain: ${DOMAIN}${NC}"
+echo "Virtual Host: ${VIRTUAL_HOST}"
+echo "Virtual Port: ${VIRTUAL_PORT}"
+echo "Let's Encrypt Host: ${LETSENCRYPT_HOST}"
 echo ""
 
 # Step 1: Deploy from Git
@@ -93,7 +87,6 @@ if [ -n "$DOMAIN" ]; then
     \"VIRTUAL_HOST\": \"${VIRTUAL_HOST}\",
     \"VIRTUAL_PORT\": \"${VIRTUAL_PORT}\",
     \"LETSENCRYPT_HOST\": \"${LETSENCRYPT_HOST}\",
-    \"LETSENCRYPT_EMAIL\": \"${LETSENCRYPT_EMAIL}\"
   }"
 fi
 
