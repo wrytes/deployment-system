@@ -80,9 +80,7 @@ DEPLOY_RESPONSE=$(curl -s -X POST ${PROD_URL}/deployments/from-git \
     \"replicas\": ${REPLICAS},
     \"envVars\": {
       \"NODE_ENV\": \"production\",
-      \"PORT\": \"${VIRTUAL_PORT}\"
-    },
-    \"labels\": {
+      \"PORT\": \"${VIRTUAL_PORT}\",
       \"VIRTUAL_HOST\": \"${VIRTUAL_HOST}\",
       \"VIRTUAL_PORT\": \"${VIRTUAL_PORT}\",
       \"LETSENCRYPT_HOST\": \"${LETSENCRYPT_HOST}\"
