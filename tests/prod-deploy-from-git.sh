@@ -65,37 +65,29 @@ echo ""
 # Step 1: Deploy from Git
 echo -e "${BLUE}Step 1: Initiating Git deployment...${NC}"
 
-# Build deployment payload
-DEPLOY_PAYLOAD="{
-  \"environmentId\": \"${ENV_ID}\",
-  \"gitUrl\": \"${GIT_URL}\",
-  \"branch\": \"${BRANCH}\",
-  \"baseImage\": \"node:22-alpine\",
-  \"installCommand\": \"yarn install --frozen-lockfile\",
-  \"buildCommand\": \"yarn run build\",
-  \"startCommand\": \"yarn start\",
-  \"replicas\": ${REPLICAS},
-  \"envVars\": {
-    \"NODE_ENV\": \"production\",
-    \"PORT\": \"${VIRTUAL_PORT}\"
-  }"
-
-# Add labels for nginx-proxy and Let's Encrypt if domain is provided
-if [ -n "$DOMAIN" ]; then
-  DEPLOY_PAYLOAD="${DEPLOY_PAYLOAD},
-  \"labels\": {
-    \"VIRTUAL_HOST\": \"${VIRTUAL_HOST}\",
-    \"VIRTUAL_PORT\": \"${VIRTUAL_PORT}\",
-    \"LETSENCRYPT_HOST\": \"${LETSENCRYPT_HOST}\",
-  }"
-fi
-
-DEPLOY_PAYLOAD="${DEPLOY_PAYLOAD}}"
-
+# Build deployment payload with labels included
 DEPLOY_RESPONSE=$(curl -s -X POST ${PROD_URL}/deployments/from-git \
   -H "X-API-Key: ${API_KEY}" \
   -H "Content-Type: application/json" \
-  -d "${DEPLOY_PAYLOAD}")
+  -d "{
+    \"environmentId\": \"${ENV_ID}\",
+    \"gitUrl\": \"${GIT_URL}\",
+    \"branch\": \"${BRANCH}\",
+    \"baseImage\": \"node:22-alpine\",
+    \"installCommand\": \"yarn install --frozen-lockfile\",
+    \"buildCommand\": \"yarn run build\",
+    \"startCommand\": \"yarn start\",
+    \"replicas\": ${REPLICAS},
+    \"envVars\": {
+      \"NODE_ENV\": \"production\",
+      \"PORT\": \"${VIRTUAL_PORT}\"
+    },
+    \"labels\": {
+      \"VIRTUAL_HOST\": \"${VIRTUAL_HOST}\",
+      \"VIRTUAL_PORT\": \"${VIRTUAL_PORT}\",
+      \"LETSENCRYPT_HOST\": \"${LETSENCRYPT_HOST}\"
+    }
+  }")
 
 echo "$DEPLOY_RESPONSE" | python3 -m json.tool
 
