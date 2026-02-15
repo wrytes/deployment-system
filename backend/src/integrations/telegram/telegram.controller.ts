@@ -9,6 +9,7 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { InjectBot } from 'nestjs-telegraf';
 import { Telegraf } from 'telegraf';
+import * as crypto from 'crypto';
 
 @Controller('telegram')
 export class TelegramController {
@@ -19,10 +20,12 @@ export class TelegramController {
     @InjectBot() private readonly bot: Telegraf,
     private readonly configService: ConfigService,
   ) {
-    // Generate a consistent secret from bot token (or use a dedicated env var)
+    // Generate a valid secret token from bot token
+    // Telegram secret tokens must only contain A-Z, a-z, 0-9, _, -
     const botToken = this.configService.get<string>('telegram.botToken');
-    // Use first 32 chars of bot token hash as secret
-    this.webhookSecret = botToken ? botToken.substring(0, 32) : '';
+    this.webhookSecret = botToken
+      ? crypto.createHash('sha256').update(botToken).digest('hex').substring(0, 32)
+      : '';
   }
 
   @Post('webhook')

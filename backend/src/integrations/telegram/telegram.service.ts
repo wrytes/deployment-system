@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Telegraf } from 'telegraf';
 import { InjectBot } from 'nestjs-telegraf';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class TelegramService implements OnModuleInit {
@@ -25,8 +26,13 @@ export class TelegramService implements OnModuleInit {
       try {
         const webhookUrl = `https://${webhookDomain}${webhookPath}`;
 
-        // Use first 32 chars of bot token as secret token for webhook validation
-        const secretToken = botToken.substring(0, 32);
+        // Generate valid secret token (only A-Z, a-z, 0-9, _, -)
+        // Hash the bot token to get a consistent, valid secret
+        const secretToken = crypto
+          .createHash('sha256')
+          .update(botToken)
+          .digest('hex')
+          .substring(0, 32);
 
         // Set webhook with secret token for security
         await this.bot.telegram.setWebhook(webhookUrl, {
