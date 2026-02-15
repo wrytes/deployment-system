@@ -163,7 +163,6 @@ export class StartupService implements OnModuleInit {
           where: { id: deployment.id },
           data: {
             status: DeploymentStatus.FAILED,
-            updatedAt: new Date(),
           },
         })
         .catch((updateError) => {
