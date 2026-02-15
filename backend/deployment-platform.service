@@ -1,0 +1,38 @@
+[Unit]
+Description=Deployment Platform - Docker Swarm Deployment System
+Requires=docker.service
+After=docker.service
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/deployment-platform/backend
+Environment="COMPOSE_FILE=docker-compose.prod.yml"
+
+# Pre-start checks
+ExecStartPre=/usr/bin/docker info
+ExecStartPre=/bin/bash -c 'test -f .env || (echo ".env file missing" && exit 1)'
+
+# Start services
+ExecStart=/usr/bin/docker compose up -d --wait
+
+# Run migrations after services are healthy
+ExecStartPost=/bin/sleep 5
+ExecStartPost=/usr/bin/docker compose exec -T backend npx prisma migrate deploy
+
+# Stop services
+ExecStop=/usr/bin/docker compose down
+
+# Restart policy
+Restart=on-failure
+RestartSec=10s
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=deployment-platform
+
+[Install]
+WantedBy=multi-user.target

@@ -4,20 +4,20 @@ FROM node:20-alpine AS builder
 WORKDIR /app
 
 # Copy package files
-COPY package*.json ./
+COPY package.json yarn.lock ./
 COPY prisma ./prisma/
 
 # Install dependencies
-RUN npm ci
+RUN yarn install --frozen-lockfile
 
 # Copy source code
 COPY . .
 
 # Generate Prisma client
-RUN npx prisma generate
+RUN yarn prisma generate
 
 # Build application
-RUN npm run build
+RUN yarn build
 
 # Stage 2: Production
 FROM node:20-alpine
@@ -25,8 +25,8 @@ FROM node:20-alpine
 WORKDIR /app
 
 # Install production dependencies only
-COPY package*.json ./
-RUN npm ci --only=production
+COPY package.json yarn.lock ./
+RUN yarn install --frozen-lockfile --production
 
 # Copy Prisma schema and generated client
 COPY --from=builder /app/prisma ./prisma

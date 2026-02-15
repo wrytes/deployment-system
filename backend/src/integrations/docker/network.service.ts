@@ -160,4 +160,17 @@ export class NetworkService {
       throw error;
     }
   }
+
+  async networkExists(nameOrId: string): Promise<boolean> {
+    try {
+      const network = this.docker.getNetwork(nameOrId);
+      await network.inspect();
+      return true;
+    } catch (error) {
+      if (error.statusCode === 404) {
+        return false;
+      }
+      throw error;
+    }
+  }
 }

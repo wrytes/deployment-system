@@ -196,6 +196,34 @@ export class ContainerService {
     }
   }
 
+  async serviceExists(serviceName: string): Promise<boolean> {
+    try {
+      const service = this.docker.getService(serviceName);
+      await service.inspect();
+      return true;
+    } catch (error) {
+      if (error.statusCode === 404) {
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async getServiceTasks(serviceName: string): Promise<any[]> {
+    try {
+      const service = this.docker.getService(serviceName);
+      const tasks = await this.docker.listTasks({
+        filters: { service: [serviceName] },
+      });
+      return tasks;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get tasks for service ${serviceName}: ${error.message}`,
+      );
+      throw error;
+    }
+  }
+
   async getServiceStatus(nameOrId: string): Promise<any> {
     try {
       const service = this.docker.getService(nameOrId);

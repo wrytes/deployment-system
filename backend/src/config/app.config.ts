@@ -21,5 +21,7 @@ export default registerAs('app', () => {
     baseUrl,
     virtualHost,
     virtualPort: parseInt(virtualPort, 10),
+    enableDeploymentRecovery:
+      process.env.ENABLE_DEPLOYMENT_RECOVERY !== 'false',
   };
 });

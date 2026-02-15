@@ -16,6 +16,7 @@ import { validationSchema } from './config/validation.schema';
 // Core modules
 import { DatabaseModule } from './core/database/database.module';
 import { HealthModule } from './core/health/health.module';
+import { StartupModule } from './core/startup/startup.module';
 
 // Integration modules
 import { DockerModule } from './integrations/docker/docker.module';
@@ -25,7 +26,6 @@ import { TelegramModule } from './integrations/telegram/telegram.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { EnvironmentsModule } from './modules/environments/environments.module';
 import { DeploymentsModule } from './modules/deployments/deployments.module';
-import { LogsModule } from './modules/logs/logs.module';
 
 // Common modules
 import { EventsModule } from './common/events/events.module';
@@ -91,6 +91,7 @@ import { AppService } from './app.service';
     // Core modules
     DatabaseModule,
     HealthModule,
+    StartupModule,
 
     // Integration modules
     DockerModule,
@@ -100,7 +101,6 @@ import { AppService } from './app.service';
     AuthModule,
     EnvironmentsModule,
     DeploymentsModule,
-    LogsModule,
 
     // Common modules
     EventsModule,

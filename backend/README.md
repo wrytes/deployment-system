@@ -59,16 +59,46 @@ $ npm run test:cov
 
 ## Deployment
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+### Production Deployment
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+For production deployment with automatic service startup and deployment recovery, see the comprehensive [Production Deployment Guide](../docs/PRODUCTION_DEPLOYMENT.md).
+
+**Quick Start:**
 
 ```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+# On your production server
+cd /opt/deployment-platform/backend
+
+# Create .env file with your configuration
+cp .env.example .env
+nano .env
+
+# Run the startup script (handles everything)
+chmod +x startup.sh
+./startup.sh
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+The system includes:
+- **Automatic startup** - Services auto-start on server boot via systemd
+- **Deployment recovery** - Running deployments automatically restart after backend restarts
+- **Docker Swarm** - Orchestrates container deployments
+- **SSL/TLS** - Automatic certificate management with Let's Encrypt
+- **Monitoring** - Comprehensive logging and health checks
+
+### Development
+
+For local development:
+
+```bash
+# Start infrastructure services
+docker compose up -d postgres redis
+
+# Run migrations
+npx prisma migrate dev
+
+# Start development server
+npm run start:dev
+```
 
 ## Resources
 

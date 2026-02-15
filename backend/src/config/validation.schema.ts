@@ -39,4 +39,7 @@ export const validationSchema = Joi.object({
   // Rate Limiting
   THROTTLE_TTL: Joi.number().default(60),
   THROTTLE_LIMIT: Joi.number().default(100),
+
+  // Startup Recovery
+  ENABLE_DEPLOYMENT_RECOVERY: Joi.boolean().default(true),
 });
