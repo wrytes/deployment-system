@@ -8,8 +8,11 @@ export default registerAs('app', () => {
   const virtualPort = process.env.VIRTUAL_PORT || port.toString();
 
   // Construct base URL: http in development, https in production
+  // In production, omit port (nginx-proxy handles routing on standard ports)
   const protocol = isDevelopment ? 'http' : 'https';
-  const baseUrl = `${protocol}://${virtualHost}:${virtualPort}`;
+  const baseUrl = isDevelopment
+    ? `${protocol}://${virtualHost}:${port}`
+    : `${protocol}://${virtualHost}`;
 
   return {
     nodeEnv,
