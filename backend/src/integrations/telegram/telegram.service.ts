@@ -19,12 +19,20 @@ export class TelegramService implements OnModuleInit {
     );
     const webhookPath = this.configService.get<string>('telegram.webhookPath');
     const isProduction = this.configService.get<boolean>('app.isProduction');
+    const botToken = this.configService.get<string>('telegram.botToken');
 
-    if (webhookDomain && isProduction) {
+    if (webhookDomain && isProduction && botToken) {
       try {
         const webhookUrl = `https://${webhookDomain}${webhookPath}`;
-        await this.bot.telegram.setWebhook(webhookUrl);
-        this.logger.log(`Webhook set to: ${webhookUrl}`);
+
+        // Use first 32 chars of bot token as secret token for webhook validation
+        const secretToken = botToken.substring(0, 32);
+
+        // Set webhook with secret token for security
+        await this.bot.telegram.setWebhook(webhookUrl, {
+          secret_token: secretToken,
+        });
+        this.logger.log(`Webhook set to: ${webhookUrl} (with secret token)`);
 
         // Verify webhook was set
         const webhookInfo = await this.bot.telegram.getWebhookInfo();
