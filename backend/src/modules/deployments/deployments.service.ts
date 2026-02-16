@@ -30,8 +30,8 @@ export interface CreateDeploymentDto {
   ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>;
   envVars?: Record<string, string>;
   volumes?: Array<{ name: string; path: string; readOnly?: boolean }>;
-  virtualHost?: string;   // Optional domain for public access
-  virtualPort?: number;   // Optional port for proxy
+  virtualHost?: string; // Optional domain for public access
+  virtualPort?: number; // Optional port for proxy
 }
 
 export interface CreateDeploymentFromGitDto {
@@ -48,8 +48,8 @@ export interface CreateDeploymentFromGitDto {
   ports?: Array<{ container: number; host?: number; protocol?: 'tcp' | 'udp' }>;
   envVars?: Record<string, string>;
   volumes?: Array<{ name: string; path: string; readOnly?: boolean }>;
-  virtualHost?: string;   // Optional domain for public access
-  virtualPort?: number;   // Optional port for proxy
+  virtualHost?: string; // Optional domain for public access
+  virtualPort?: number; // Optional port for proxy
 }
 
 @Injectable()
@@ -581,7 +581,8 @@ export class DeploymentsService {
     // Generate job ID and image name
     const jobId = nanoid(this.JOB_ID_LENGTH);
     const timestampSeconds = Math.floor(Date.now() / 1000);
-    const imageName = `img_${environment.name}_${timestampSeconds}`.toLowerCase();
+    const imageName =
+      `img_${environment.name}_${timestampSeconds}`.toLowerCase();
     const tag = dto.branch || 'latest';
 
     // Create deployment record
